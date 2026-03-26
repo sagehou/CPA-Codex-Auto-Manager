@@ -40,9 +40,15 @@ class EmailServiceType(str, Enum):
 # 应用常量
 # ============================================================================
 
+<<<<<<< HEAD
 APP_NAME = "CAP-Codex-Manager"
 APP_VERSION = "1.0.0"
 APP_DESCRIPTION = "CAP-Codex-Manager"
+=======
+APP_NAME = "CPA-Codex-Manager"
+APP_VERSION = "1.0.0"
+APP_DESCRIPTION = "CPA-Codex-Manager"
+>>>>>>> 325dd31 (1.0.0)
 
 # ============================================================================
 # OpenAI OAuth 相关常量

@@ -48,6 +48,14 @@ class AutoPatrolConfig(BaseModel):
     weekly_threshold: float = 95.0
     primary_threshold: float = 95.0
     
+<<<<<<< HEAD
+=======
+    # 紧急防御 (就绪率 < 阈值)
+    emergency_defense: bool = True
+    emergency_threshold: float = 0.5
+    emergency_cooldown_minutes: int = 5
+    
+>>>>>>> 325dd31 (1.0.0)
     # 自动扩容参数
     auto_replenish: bool = False
     replenish_threshold: int = 10
@@ -290,6 +298,10 @@ async def perform_scan(batch_id: str, req: ScanRequest):
         results=results,
         summary={
             "total": total,
+<<<<<<< HEAD
+=======
+            "ready": total - invalid_401 - invalid_quota - errors,
+>>>>>>> 325dd31 (1.0.0)
             "invalid_401": invalid_401,
             "invalid_quota": invalid_quota,
             "errors": errors
@@ -468,6 +480,50 @@ class AutoPatrolManager:
                     results = status.get("results", [])
                     names_401 = [r["name"] for r in results if r["status"] == "401"]
                     names_quota = [r["name"] for r in results if r["status"] == "exhausted"]
+<<<<<<< HEAD
+=======
+                    names_errors = [r["name"] for r in results if r["status"] == "error"]
+
+                    sum_data = status.get("summary", {})
+                    total_scanned = sum_data.get("total", 0)
+                    ready_count = sum_data.get("ready", 0)
+
+                    # 逻辑：如果就绪比例少于阈值，随机清理一半并冷却后重试
+                    threshold = getattr(self._config, 'emergency_threshold', 0.5)
+                    cooldown = getattr(self._config, 'emergency_cooldown_minutes', 5)
+                    if self._config.emergency_defense and total_scanned > 0 and (ready_count / total_scanned) < threshold:
+                        msg = f"检测到有效账号占比过低 ({ready_count}/{total_scanned} < {int(threshold * 100)}%)，触发紧急防御: 随机半量清理"
+                        logger.warning(msg)
+                        all_names = [r["name"] for r in results]
+                        import random
+                        names_to_delete = random.sample(all_names, len(all_names) // 2)
+                        if names_to_delete:
+                            action_batch_id = f"auto_action_emergency_{int(time.time())}"
+                            task_manager.init_batch(action_batch_id, total=len(names_to_delete))
+                            await perform_action(action_batch_id, ActionRequest(
+                                service_id=self._config.service_id,
+                                action="delete",
+                                names=names_to_delete
+                            ))
+                        
+                        # 记录紧急防御到历史
+                        self._history.insert(0, {
+                            "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                            "total": total_scanned,
+                            "invalid_401": sum_data.get("invalid_401", 0),
+                            "invalid_quota": sum_data.get("invalid_quota", 0),
+                            "errors": sum_data.get("errors", 0),
+                            "cleared": len(names_to_delete),
+                            "emergency": True
+                        })
+                        if len(self._history) > 50: self._history.pop()
+                        self._save()
+
+                        logger.info(f"自动检测扫描异常结束 | 有效: {ready_count}, 异常触发: 紧急防御已清理半量并将在 {cooldown} 分钟后重新检测")
+                        self._status = "idle"
+                        await asyncio.sleep(cooldown * 60)
+                        continue
+>>>>>>> 325dd31 (1.0.0)
                     
                     # 执行 401 动作
                     if self._config.action_401 == "delete" and names_401:
@@ -488,11 +544,48 @@ class AutoPatrolManager:
                             action=self._config.action_quota,
                             names=names_quota
                         ))
+<<<<<<< HEAD
                     
                     # 记录到持久化历史
                     sum_data = status.get("summary", {})
                     cleared_count = (len(names_401) if self._config.action_401 == 'delete' else 0) + \
                                     (len(names_quota) if self._config.action_quota == 'delete' else 0)
+=======
+
+                    # 执行 Error 动作 (新要求：异常账号也清理)
+                    if names_errors:
+                        action_batch_id = f"auto_action_error_{int(time.time())}"
+                        task_manager.init_batch(action_batch_id, total=len(names_errors))
+                        await perform_action(action_batch_id, ActionRequest(
+                            service_id=self._config.service_id,
+                            action="delete",
+                            names=names_errors
+                        ))
+                    
+                    # 检查是否需要自动补货
+                    replenish_log = ""
+                    replenish_info = None
+                    if self._config.auto_replenish and ready_count < self._config.replenish_threshold:
+                        # 提前获取详情用于日志
+                        service_name = "tempmail"
+                        try:
+                            with get_db() as db:
+                                if self._config.replenish_email_service_id:
+                                    service = crud.get_email_service_by_id(db, self._config.replenish_email_service_id)
+                                    if service: service_name = service.name
+                        except: pass
+                        
+                        count = self._config.replenish_count
+                        threads = self._config.replenish_concurrency if self._config.replenish_reg_mode == "parallel" else 1
+                        replenish_log = f" | 触发自动补货: {threads}个线程执行[{service_name}] 补货 {count} 个账号"
+                        replenish_info = {"method": service_name, "count": count, "threads": threads}
+                        asyncio.create_task(self._trigger_replenish())
+
+                    # 记录到持久化历史
+                    cleared_count = (len(names_401) if self._config.action_401 == 'delete' else 0) + \
+                                    (len(names_quota) if self._config.action_quota == 'delete' else 0) + \
+                                    len(names_errors)
+>>>>>>> 325dd31 (1.0.0)
                     
                     self._history.insert(0, {
                         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -500,16 +593,26 @@ class AutoPatrolManager:
                         "invalid_401": sum_data.get("invalid_401", 0),
                         "invalid_quota": sum_data.get("invalid_quota", 0),
                         "errors": sum_data.get("errors", 0),
+<<<<<<< HEAD
                         "cleared": cleared_count
+=======
+                        "cleared": cleared_count,
+                        "replenish": replenish_info
+>>>>>>> 325dd31 (1.0.0)
                     })
                     if len(self._history) > 50: self._history.pop()
                     self._save() # 每次成功巡检后保存历史
 
+<<<<<<< HEAD
                     # 检查是否需要自动补货
                     ready_count = sum_data.get("ready", 0)
                     if self._config.auto_replenish and ready_count < self._config.replenish_threshold:
                         logger.info(f"触发自动补货: 当前就绪 {ready_count} < 阈值 {self._config.replenish_threshold}")
                         asyncio.create_task(self._trigger_replenish())
+=======
+                    final_msg = f"自动检测扫描结束 | 有效: {ready_count}, 401: {len(names_401)}, 额度耗尽: {len(names_quota)}, 异常: {len(names_errors)} 已清理 {cleared_count} 个账号{replenish_log}"
+                    logger.info(final_msg)
+>>>>>>> 325dd31 (1.0.0)
 
                 self._status = "idle"
                 logger.info(f"自动巡检一轮结束，等待 {self._config.interval_minutes} 分钟")

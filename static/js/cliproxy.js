@@ -182,6 +182,16 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // 显式处理 checkbox 可能缺失的情况
         config.enabled = patrolEnabledToggle.checked;
+<<<<<<< HEAD
+=======
+        config.emergency_defense = document.getElementById('patrol-emergency-toggle').checked;
+        
+        // 紧急防御数值处理
+        const thresholdPct = parseInt(document.getElementById('emergency-threshold-pct').value) || 50;
+        config.emergency_threshold = thresholdPct / 100;
+        config.emergency_cooldown_minutes = parseInt(patrolForm.emergency_cooldown_minutes.value) || 5;
+
+>>>>>>> 325dd31 (1.0.0)
         config.auto_replenish = patrolForm.auto_replenish.checked;
 
         try {
@@ -457,6 +467,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 patrolEnabledToggle.checked = !!cfg.enabled;
+<<<<<<< HEAD
+=======
+                const emergencyToggle = document.getElementById('patrol-emergency-toggle');
+                if (emergencyToggle) {
+                    emergencyToggle.checked = !!cfg.emergency_defense;
+                    // 回填数值
+                    const thresholdPct = Math.round((cfg.emergency_threshold || 0.5) * 100);
+                    document.getElementById('emergency-threshold-pct').value = thresholdPct;
+                    patrolForm.emergency_cooldown_minutes.value = cfg.emergency_cooldown_minutes || 5;
+                    toggleEmergencyConfigVisibility();
+                }
+>>>>>>> 325dd31 (1.0.0)
                 if (patrolForm.auto_replenish) patrolForm.auto_replenish.checked = !!cfg.auto_replenish;
                 
                 // 触发一次显隐切换
@@ -476,6 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+<<<<<<< HEAD
             container.innerHTML = history.map(item => `
                 <div class="notification-item">
                     <div class="notif-dot"></div>
@@ -494,6 +517,44 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `).join('');
+=======
+            container.innerHTML = history.map(item => {
+                let statusInfo = '';
+                if (item.emergency) {
+                    statusInfo = `<span class="notif-stats" style="color: #FF9500;">触发紧急防御 | 有效: ${item.total - item.cleared}, 已随机清理: ${item.cleared}</span>`;
+                } else {
+                    statusInfo = `
+                        <span class="notif-stats">
+                            有效: ${item.total - item.invalid_401 - item.invalid_quota - item.errors}, 
+                            401: ${item.invalid_401}, 
+                            额度耗尽: ${item.invalid_quota}, 
+                            异常: ${item.errors}
+                        </span>
+                        ${item.cleared > 0 ? `<span class="notif-cleared">已清理 ${item.cleared} 个账号</span>` : ''}
+                    `;
+                }
+
+                let replenishMsg = '';
+                if (item.replenish) {
+                    const threadInfo = item.replenish.threads ? `${item.replenish.threads}个线程执行` : '';
+                    replenishMsg = `<div style="font-size: 11px; color: var(--accent); margin-top: 4px;">触发自动补货: ${threadInfo}[${item.replenish.method}] 补货 ${item.replenish.count} 个</div>`;
+                }
+
+                return `
+                    <div class="notification-item">
+                        <div class="notif-dot"></div>
+                        <div class="notif-content">
+                            <div class="notif-time">${item.time}</div>
+                            <div class="notif-text">
+                                ${item.emergency ? '自动检测扫描异常结束' : '自动检测扫描结束'} | 
+                                ${statusInfo}
+                                ${replenishMsg}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+>>>>>>> 325dd31 (1.0.0)
         } catch (err) { }
     }
 
@@ -635,5 +696,21 @@ function toggleReplenishVisibility() {
 }
 // 注册一个初始化触发
 window.onload = function() {
+<<<<<<< HEAD
     setTimeout(toggleReplenishVisibility, 500);
 };
+=======
+    setTimeout(() => {
+        toggleReplenishVisibility();
+        toggleEmergencyConfigVisibility();
+    }, 500);
+};
+
+function toggleEmergencyConfigVisibility() {
+    const toggle = document.getElementById('patrol-emergency-toggle');
+    const group = document.getElementById('emergency-config-group');
+    if (toggle && group) {
+        group.style.display = toggle.checked ? 'block' : 'none';
+    }
+}
+>>>>>>> 325dd31 (1.0.0)

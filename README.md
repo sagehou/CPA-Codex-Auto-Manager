@@ -17,10 +17,22 @@
 - **智能自动补货系统**：
   - **实时号池监控**：当 CPA 在线账号低于阈值时，自动触发补货。
   - **自动任务挂载**：补货任务自动在首页控制台展示进度，无需人工干预。
+<<<<<<< HEAD
 - **全栈监控面板**：
   - **实时日志流**：基于 WebSocket 的逐行日志推送，随时监控注册细节。
   - **进度可视化**：直接显示成功、失败、剩余数与进度百分比。
 - **多邮箱生态支持**：集成 Outlook、TempMail、CloudMail邮箱服务。
+=======
+  - **详细补货日志**：在检测历史中清晰标注触发补货的具体方式、邮箱服务及补货数量。
+- **全栈监控面板**：
+  - **实时日志流**：基于 WebSocket 的逐行日志推送，随时监控注册细节。
+  - **进度可视化**：直接显示成功、失败、剩余数与进度百分比。
+- **多邮箱生态支持**：集成 Outlook、TempMail、CloudMail 邮箱服务。
+- **紧急防御与异常熔断**：
+  - **动态阈值保护**：巡检时发现就绪账号比例低于设定值（如 50%，可配置）时，自动触发紧急防御，随机清理半量账号。
+  - **自定义冷却重试**：紧急防御触发后，系统将进入预设的冷却期（如 5 分钟，可配置）后重新开始检测。
+  - **异常账号全自动清理**：自动移除检测过程中产生 Network Error 或 API 报错的“僵尸”账号。
+>>>>>>> 325dd31 (1.0.0)
 
 ## 集成 CLIProxyAPI
 - **CLI Proxy API Management Center**：
@@ -83,5 +95,16 @@ python webui.py
 
 因使用本项目产生的任何风险和后果，由使用者自行承担。
 
+<<<<<<< HEAD
+=======
+## Star History
+
+<p align="center">
+  <a href="https://www.star-history.com/#maoleio/CAP-Codex-Manager&Date">
+    <img src="https://api.star-history.com/svg?repos=maoleio/CAP-Codex-Manager&type=Date" alt="Star History Chart" />
+  </a>
+</p>
+
+>>>>>>> 325dd31 (1.0.0)
 ---
 **CPA-Codex-Manager** - 让 CLIProxyAPI 号池管理变得优雅而自动化。

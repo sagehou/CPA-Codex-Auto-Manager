@@ -456,7 +456,11 @@
         <!-- 导航栏 -->
         <nav class="navbar">
             <div class="nav-brand">
+<<<<<<< HEAD
                 <h1>CAP-Codex-Manager</h1>
+=======
+                <h1>CPA-Codex-Manager</h1>
+>>>>>>> 325dd31 (1.0.0)
             </div>
             <div class="nav-links">
                 <a href="/" class="nav-link">账号注册</a>
@@ -700,9 +704,41 @@
                         <input type="hidden" name="enabled" id="patrol-enabled-hidden">
                     </div>
 
+<<<<<<< HEAD
                     <div class="form-group">
                         <label>巡检关联 CPA (监测此平台)</label>
                         <select id="patrol-cpa-service" name="service_id"></select>
+=======
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 2;">
+                            <label>巡检关联 CPA (监测此平台)</label>
+                            <select id="patrol-cpa-service" name="service_id"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>紧急防御</label>
+                            <p style="text-align: left; font-size: 11px; color: var(--text-muted); margin-top: 8px; margin-bottom: 8px;">
+                                开启后，当就绪账号占比过低时，自动清理并重试。
+                            </p>
+                            <label class="switch-btn">
+                                <input type="checkbox" name="emergency_defense" id="patrol-emergency-toggle" onchange="toggleEmergencyConfigVisibility()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="emergency-config-group" style="display: none; border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 12px; margin-top: 4px; background: rgba(255,149,0,0.02);">
+                        <div class="form-row" style="margin-bottom: 0;">
+                            <div class="form-group">
+                                <label>触发阈值 (就绪率 < %)</label>
+                                <input type="number" id="emergency-threshold-pct" name="emergency_threshold_pct" value="50" min="1" max="99">
+                                <input type="hidden" name="emergency_threshold" id="emergency-threshold-hidden" value="0.5">
+                            </div>
+                            <div class="form-group">
+                                <label>重试冷却 (分钟)</label>
+                                <input type="number" name="emergency_cooldown_minutes" value="5" min="1">
+                            </div>
+                        </div>
+>>>>>>> 325dd31 (1.0.0)
                     </div>
                 </div>
 
@@ -824,7 +860,11 @@
                 <div style="margin-top: 32px;">
                     <div style="display: flex; gap: 12px;">
                         <button type="button" id="test-replenish-btn" class="btn btn-secondary"
+<<<<<<< HEAD
                             style="height: 48px; flex: 1;">测试补货流程</button>
+=======
+                            style="height: 48px; flex: 1;">测试补货</button>
+>>>>>>> 325dd31 (1.0.0)
                         <button type="button" id="save-patrol-btn" class="btn btn-primary"
                             style="height: 48px; flex: 2;">保存所有巡检配置</button>
                     </div>
