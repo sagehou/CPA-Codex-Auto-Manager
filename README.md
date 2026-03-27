@@ -67,7 +67,29 @@ python webui.py
 
 进入系统设置页添加 CPA 服务，即可使用。
 
-### 4. Docker Compose 联动 cli-proxy-api
+### 4. Docker Hub 使用
+
+拉取镜像：
+
+```bash
+docker pull nasqdz/CPA-Codex-Auto-Manager:latest
+```
+
+直接运行当前项目镜像：
+
+```bash
+docker run -d \
+  --name cpa-codex-auto-manager \
+  -p 8000:8000 \
+  -e APP_ACCESS_PASSWORD=your_webui_password \
+  -e CPA_API_URL=http://cli-proxy-api:8317/v0 \
+  -e CPA_API_TOKEN=your_cli_proxy_api_token \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/logs:/app/logs \
+  nasqdz/CPA-Codex-Auto-Manager:latest
+```
+
+### 5. Docker Compose 联动 cli-proxy-api
 
 先准备环境变量：
 
@@ -81,10 +103,11 @@ export CLI_PROXY_API_AUTH_DIR=/path/to/your/auth-dir
 然后启动：
 
 ```bash
-docker compose up -d --build
+docker compose up -d
 ```
 
 说明：
+- `compose.yaml` 默认直接使用 `nasqdz/CPA-Codex-Auto-Manager:latest`
 - `compose.yaml` 会同时启动当前项目和 `eceasy/cli-proxy-api:latest`
 - 当前项目会通过容器内地址 `http://cli-proxy-api:8317/v0` 自动写入一个平台到“系统设置 -> 平台集成”
 - Token 不写死，必须通过环境变量 `CPA_API_TOKEN` 提供

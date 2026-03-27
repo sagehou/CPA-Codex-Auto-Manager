@@ -1,9 +1,6 @@
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: cpa-codex-manager:local
+    image: nasqdz/CPA-Codex-Auto-Manager:latest
     ports:
       - "8000:8000"
     environment:
