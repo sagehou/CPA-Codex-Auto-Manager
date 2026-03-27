@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>邮箱服务 - Codex</title>
+    <link rel="stylesheet" href="/static/css/style.css?v={{ static_version }}">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23007AFF'/><circle cx='50' cy='50' r='20' fill='white'/></svg>">
+</head>
+
+<body>
+    <div class="">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>CPA-Codex-Manager</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">账号注册</a>
+                <a href="/accounts" class="nav-link">账号管理</a>
+                <a href="/cliproxy-cleaner" class="nav-link">CPA 检测</a>
+                <a href="/email-services" class="nav-link active">邮箱服务</a>
+                <a href="/settings" class="nav-link">系统设置</a>
+                <a href="/logout" class="nav-link">退出</a>
+            </div>
+            <button class="theme-toggle" onclick="theme.toggle()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5" />
+                    <path
+                        d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                </svg>
+            </button>
+        </nav>
+
+        <main class="container main-content">
+            <div class="page-header">
+                <h2>邮箱服务管理</h2>
+                <p class="subtitle">配置和管理用于注册的邮箱提供商</p>
+            </div>
+
+            <!-- 数据概览 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="outlook-count">0</div>
+                    <div class="stat-label">Outlook 账号</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="custom-count" style="color: #007AFF;">0</div>
+                    <div class="stat-label">自定义服务商</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="tempmail-status">可用</div>
+                    <div class="stat-label">临时邮箱</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-enabled">0</div>
+                    <div class="stat-label">已启用总数</div>
+                </div>
+            </div>
+
+            <!-- Outlook 批量导入 -->
+            <div class="card">
+                <div class="card-header" style="align-items: center;">
+                    <h3>Outlook 批量导入</h3>
+                    <button class="btn btn-ghost btn-sm" id="toggle-outlook-import">展开</button>
+                </div>
+                <div class="card-body" id="outlook-import-body" style="display: none; padding-top: 32px;">
+                    <div
+                        style="background: var(--bg-system); padding: 16px; border-radius: var(--radius); margin-bottom: 24px; font-size: 13px; color: var(--text-secondary);">
+                        <p style="font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">支持格式：</p>
+                        <p>1. <code>邮箱----密码</code></p>
+                        <p>2. <code>邮箱----密码----Client_ID----Refresh_Token</code></p>
+                        <small style="display: block; margin-top: 8px;">* 使用四个连字符 "----" 作为分隔符。以 # 开头的行将被忽略。</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="outlook-import-data">导入数据</label>
+                        <textarea id="outlook-import-data" rows="8"
+                            placeholder="example@outlook.com----password123"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="outlook-import-enabled" checked>
+                                <span style="font-size: 13px;">导入后立即启用</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label for="outlook-import-priority">优先级</label>
+                            <input type="number" id="outlook-import-priority" value="0" min="0">
+                        </div>
+                    </div>
+                    <div class="form-actions" style="margin-top: 24px;">
+                        <button type="button" class="btn btn-primary" id="outlook-import-btn">开始导入</button>
+                        <button type="button" class="btn btn-secondary" id="clear-import-btn">清空输入</button>
+                    </div>
+                    <div id="import-result" style="display: none; margin-top: 24px;"></div>
+                </div>
+            </div>
+
+            <!-- 自定义服务商表格 -->
+            <div class="card">
+                <div class="card-header" style="align-items: center;">
+                    <h3>自定义邮箱服务</h3>
+                    <button class="btn btn-primary btn-sm" id="add-custom-btn">添加服务商</button>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 48px;"><input type="checkbox" id="select-all-custom"></th>
+                                    <th>名称</th>
+                                    <th style="width: 100px;">类型</th>
+                                    <th style="width: 220px;">地址</th>
+                                    <th style="width: 100px;">状态</th>
+                                    <th style="width: 80px;">优先级</th>
+                                    <th style="width: 160px;">最后使用</th>
+                                    <th style="width: 140px;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="custom-services-table">
+                                <!-- 动态内容 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Outlook 账号列表 -->
+            <div class="card">
+                <div class="card-header" style="align-items: center;">
+                    <h3>Outlook 账号列表</h3>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-danger btn-sm" id="batch-delete-outlook-btn" disabled>批量删除</button>
+                    </div>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <div class="table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 48px;"><input type="checkbox" id="select-all-outlook"></th>
+                                    <th>邮箱地址</th>
+                                    <th style="width: 120px;">认证方式</th>
+                                    <th style="width: 100px;">状态</th>
+                                    <th style="width: 80px;">优先级</th>
+                                    <th style="width: 160px;">最后使用</th>
+                                    <th style="width: 120px;">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="outlook-accounts-table">
+                                <!-- 动态内容 -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 临时邮箱设置 -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>临时邮箱配置 (Tempmail.lol)</h3>
+                </div>
+                <div class="card-body">
+                    <form id="tempmail-form">
+                        <div class="form-group">
+                            <label for="tempmail-api">API 地址</label>
+                            <input type="text" id="tempmail-api" name="api_url" placeholder="https://tempmail.lol/api">
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="tempmail-enabled" checked>
+                                <span style="font-size: 13px;">启用临时邮箱服务</span>
+                            </label>
+                        </div>
+                        <div class="form-actions" style="margin-top: 24px;">
+                            <button type="submit" class="btn btn-primary">保存设置</button>
+                            <button type="button" class="btn btn-secondary" id="test-tempmail-btn">测试连接</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 添加服务商模态框 -->
+    <div class="modal" id="add-custom-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>添加邮箱服务商</h3>
+            </div>
+            <div class="modal-body">
+                <form id="add-custom-form">
+                    <div class="form-group">
+                        <label for="custom-name">服务名称</label>
+                        <input type="text" id="custom-name" name="name" required placeholder="例如：我的域名邮箱">
+                    </div>
+                    <div class="form-group">
+                        <label for="custom-sub-type">服务类型</label>
+                        <select id="custom-sub-type" name="sub_type">
+                            <option value="moemail">MoeMail</option>
+                            <option value="tempmail">TempMail (Cloudflare Worker)</option>
+                            <option value="duckmail">DuckMail</option>
+                            <option value="freemail">Freemail (Cloudflare Worker)</option>
+                            <option value="cloudmail">CloudMail</option>
+                            <option value="imap">标准 IMAP (Gmail/163/QQ等)</option>
+                        </select>
+                    </div>
+
+                    <div id="add-fields-container" style="margin-bottom: 24px;">
+                        <!-- 动态字段由 email_services.js 填充 -->
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>优先级</label>
+                            <input type="number" id="custom-priority" name="priority" value="0" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px; margin-top: 32px;">
+                                <input type="checkbox" id="custom-enabled" name="enabled" checked> 启用
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-actions" style="margin-top: 24px;">
+                        <button type="submit" class="btn btn-primary">创建服务</button>
+                        <button type="button" class="btn btn-secondary" id="cancel-add-custom">取消</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js?v={{ static_version }}"></script>
+    <script src="/static/js/email_services.js?v={{ static_version }}"></script>
+</body>
+
+</html>

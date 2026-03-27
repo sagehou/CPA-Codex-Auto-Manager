@@ -1,0 +1,32 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cpa-codex-manager:local
+    ports:
+      - "8000:8000"
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      APP_ACCESS_PASSWORD: ${APP_ACCESS_PASSWORD:-admin123}
+      CPA_SERVICE_NAME: ${CPA_SERVICE_NAME:-cli-proxy-api}
+      CPA_API_URL: ${CPA_API_URL:-http://cli-proxy-api:8317/v0}
+      CPA_API_TOKEN: ${CPA_API_TOKEN}
+      CPA_ENABLED: ${CPA_ENABLED:-true}
+      CPA_SERVICE_PRIORITY: ${CPA_SERVICE_PRIORITY:-0}
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    depends_on:
+      - cli-proxy-api
+    restart: unless-stopped
+
+  cli-proxy-api:
+    image: eceasy/cli-proxy-api:latest
+    ports:
+      - "8317:8317"
+    volumes:
+      - ./config.yaml:/CLIProxyAPI/config.yaml:ro
+      - ./auth-dir:/root/.cli-proxy-api
+    restart: unless-stopped

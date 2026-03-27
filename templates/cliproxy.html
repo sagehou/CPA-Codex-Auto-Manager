@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPA 检测 - CodeX</title>
+    <link rel="stylesheet" href="/static/css/style.css?v={{ static_version }}">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23007AFF'/><circle cx='50' cy='50' r='20' fill='white'/></svg>">
+    <style>
+        /* 布局优化 */
+        .cpa-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .scan-stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .scan-stat-card {
+            background: var(--bg-secondary);
+            padding: 20px 24px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .scan-stat-card .label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .scan-stat-card .value {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .scan-stat-card.active-orange .value {
+            color: #FF9500;
+        }
+
+        .scan-stat-card.active-red .value {
+            color: #FF3B30;
+        }
+
+        .scan-stat-card.active-green .value {
+            color: #34C759;
+        }
+
+        /* 账号列表头部 */
+        .list-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            border-top-left-radius: var(--radius);
+            border-top-right-radius: var(--radius);
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .filter-group {
+            display: flex;
+            background: var(--bg-system);
+            padding: 3px;
+            border-radius: 8px;
+            gap: 2px;
+        }
+
+        .filter-btn {
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* 搜索框 */
+        .search-container {
+            position: relative;
+            flex: 1;
+            max-width: 300px;
+        }
+
+        .search-input {
+            width: 100%;
+            height: 32px;
+            padding: 0 12px 0 32px;
+            background: var(--bg-system);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            background: var(--bg-secondary);
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        /* 顶部扫描按钮组 (图片样式) */
+        .scan-trigger-bar {
+            padding: 20px 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto;
+            gap: 12px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .btn-scan-primary {
+            grid-column: span 2;
+            background: #007AFF;
+            color: white;
+            border: none;
+            height: 44px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn-scan-primary:hover {
+            opacity: 0.9;
+        }
+
+        .btn-scan-secondary {
+            background: var(--bg-system);
+            border: 1px solid var(--border);
+            height: 40px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-scan-secondary:hover {
+            background: var(--bg-secondary);
+        }
+
+        /* 悬浮侧边栏设置引导 */
+        .settings-drawer {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 380px;
+            height: 100vh;
+            background: var(--bg-secondary);
+            box-shadow: var(--shadow-2xl);
+            z-index: 2000;
+            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 32px;
+        }
+
+        .settings-drawer.open {
+            right: 0;
+        }
+
+        .drawer-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(4px);
+            z-index: 1999;
+            display: none;
+        }
+
+        .drawer-overlay.active {
+            display: block;
+        }
+
+        .status-pill {
+            padding: 4px 10px;
+            border-radius: var(--radius-full);
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-pill.ok {
+            background: rgba(52, 199, 89, 0.1);
+            color: #2e7d32;
+        }
+
+        .status-pill.exhausted {
+            background: rgba(255, 149, 0, 0.1);
+            color: #e65100;
+        }
+
+        .status-pill.invalid_401 {
+            background: rgba(255, 59, 48, 0.1);
+            color: #c62828;
+        }
+
+        .status-pill.error {
+            background: rgba(142, 142, 147, 0.1);
+            color: #636366;
+        }
+
+        .status-pill.pending {
+            background: rgba(0, 122, 255, 0.05);
+            color: #007AFF;
+        }
+
+        .action-bar {
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            bottom: 0;
+            z-index: 100;
+        }
+
+        .tab-nav {
+            display: flex;
+            gap: 8px;
+            background: var(--bg-system);
+            padding: 4px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            box-shadow: var(--shadow-sm);
+        }
+
+        /* 通知记录样式 */
+        .notification-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+
+        .notification-header {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(0, 122, 255, 0.02);
+        }
+
+        .notification-list {
+            max-height: 180px;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+
+        .notification-item {
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            transition: background 0.2s;
+        }
+
+        .notification-item:hover {
+            background: var(--bg-system);
+        }
+
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+
+        .notif-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            margin-top: 6px;
+            flex-shrink: 0;
+        }
+
+        .notif-content {
+            flex: 1;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .notif-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+            font-family: monospace;
+        }
+
+        .notif-stats {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .notif-cleared {
+            color: #FF3B30;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        /* 开关按钮 (Switch) */
+        .switch-btn {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+
+        .switch-btn input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border);
+            transition: .3s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        input:checked+.slider {
+            background-color: var(--accent);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(24px);
+        }
+
+        .drawer-section {
+            padding-bottom: 24px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .background-task-bar {
+            position: fixed;
+            right: 24px;
+            bottom: 24px;
+            width: min(360px, calc(100vw - 32px));
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: var(--shadow-2xl);
+            z-index: 2100;
+            padding: 14px 16px;
+            display: none;
+        }
+
+        .background-task-bar.active {
+            display: block;
+        }
+
+        .background-task-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .background-task-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+
+        .background-task-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>CPA-Codex-Manager</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">账号注册</a>
+                <a href="/accounts" class="nav-link">账号管理</a>
+                <a href="/cliproxy-cleaner" class="nav-link active">CPA 检测</a>
+                <a href="/email-services" class="nav-link">邮箱服务</a>
+                <a href="/settings" class="nav-link">系统设置</a>
+                <a href="/logout" class="nav-link">退出</a>
+            </div>
+            <button class="theme-toggle" onclick="theme.toggle()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5" />
+                    <path
+                        d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                </svg>
+            </button>
+        </nav>
+
+        <main class="container main-content">
+            <!-- 头部 -->
+            <div class="page-header" style="display: flex; justify-content: space-between; align-items: flex-end;">
+                <div>
+                    <h2>CPA 检测</h2>
+                    <p class="subtitle">深度监控授权状态，自动维护账号健康</p>
+                </div>
+                <div class="cpa-header-actions">
+                    <div class="form-group" style="margin-bottom: 0; min-width: 160px;">
+                        <select id="cpa-service-main" class="form-control"
+                            style="background: var(--bg-secondary); border-radius: 8px; height: 36px; padding: 0 12px; font-size: 13px; font-weight: 500;">
+                            <option value="">加载中...</option>
+                        </select>
+                    </div>
+                    <div id="patrol-info"
+                        style="font-size: 11px; text-align: right; margin-right: 12px; color: var(--text-muted); line-height: 1.2;">
+                        自动巡检<br><span id="patrol-status-label" class="text-secondary"
+                            style="font-weight: 600;">获取中...</span>
+                    </div>
+                    <button class="btn btn-secondary" onclick="toggleDrawer(true)"
+                        style="height: 36px; display: flex; align-items: center; gap: 6px; padding: 0 16px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2">
+                            <path
+                                d="M12 15V3m0 12l-4-4m4 4l4-4M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" />
+                        </svg>
+                        检测设置
+                    </button>
+                </div>
+            </div>
+
+            <div class="scan-stats-row">
+                <div class="scan-stat-card">
+                    <div class="label">账号总数</div>
+                    <div class="value" id="stat-total">0</div>
+                </div>
+                <div class="scan-stat-card active-red">
+                    <div class="label">401 无效</div>
+                    <div class="value" id="stat-401">0</div>
+                </div>
+                <div class="scan-stat-card active-orange">
+                    <div class="label">额度耗尽</div>
+                    <div class="value" id="stat-exhausted">0</div>
+                </div>
+                <div class="scan-stat-card active-green">
+                    <div class="label">状态就绪</div>
+                    <div class="value" id="stat-ok">0</div>
+                </div>
+            </div>
+
+            <!-- 检测通知区 -->
+            <div class="notification-card">
+                <div class="notification-header">
+                    <h3
+                        style="margin: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                        </svg>
+                        检测通知 (最近 20 条)
+                    </h3>
+                </div>
+                <div id="patrol-history-list" class="notification-list">
+                    <div style="text-align: center; padding: 40px; color: var(--text-muted); font-size: 13px;">暂无巡检记录...
+                    </div>
+                </div>
+            </div>
+
+            <div class="two-column-layout">
+                <!-- 左侧: 账号列表 -->
+                <div class="left-panel" style="flex: 2;">
+                    <div class="card" style="padding: 0; overflow: visible;">
+                        <!-- 工具栏: 筛选与操作 -->
+                        <div class="list-toolbar">
+                            <div class="filter-group">
+                                <button class="filter-btn active" data-filter="all">所有账号</button>
+                                <button class="filter-btn" data-filter="exhausted">额度耗尽</button>
+                                <button class="filter-btn" data-filter="401">401 无效</button>
+                                <button class="filter-btn" data-filter="error">检测异常</button>
+                            </div>
+                            <!-- 搜索框 -->
+                            <div class="search-container">
+                                <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                    stroke="currentColor" stroke-width="2">
+                                    <circle cx="11" cy="11" r="8"></circle>
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                </svg>
+                                <input type="text" id="account-search" class="search-input" placeholder="按邮箱或名称搜索...">
+                            </div>
+                            <div class="toolbar-group" style="margin-left: auto;">
+                                <span id="selection-info"
+                                    style="font-size: 12px; color: var(--text-secondary); margin-right: 12px;">已选中 0
+                                    个</span>
+                                <button class="btn btn-ghost btn-sm" id="select-all-btn">全选</button>
+                                <button class="btn btn-ghost btn-sm" id="deselect-all-btn">取消</button>
+                            </div>
+                        </div>
+
+                        <!-- 扫描触发区 -->
+                        <div class="scan-trigger-bar" style="grid-template-columns: 1fr; padding: 16px 24px;">
+                            <button class="btn-scan-primary" onclick="startScan('all')"
+                                style="height: 48px; font-size: 15px;">
+                                完整检测 (401 + 额度)
+                            </button>
+                        </div>
+
+                        <!-- 列表内容 -->
+                        <div class="table-container results-container" style="max-height: 600px;">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 48px;"><input type="checkbox" id="master-checkbox"
+                                                class="selection-checkbox"></th>
+                                        <th>邮箱地址</th>
+                                        <th style="width: 140px;">检测指标</th>
+                                        <th style="width: 100px;">使用率</th>
+                                        <th>状态细节</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="results-table-body">
+                                    <tr>
+                                        <td colspan="5"
+                                            style="text-align: center; padding: 100px; color: var(--text-muted);">
+                                            同步中，请稍候...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- 底部操作条 (仅选中时显示) -->
+                        <div class="action-bar" id="selection-actions"
+                            style="display: none; border-bottom-left-radius: var(--radius); border-bottom-right-radius: var(--radius);">
+                            <div style="font-size: 14px; color: var(--text-secondary);">
+                                选中的 <strong id="selected-count-bold" style="color: var(--accent);">0</strong> 个账号
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-primary btn-sm" id="batch-delete-btn"
+                                    style="background: #FF3B30; border-color: #FF3B30; padding: 6px 20px;">批量删除账号</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧: 日志 -->
+                <div class="right-panel">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>运行控制台</h3>
+                        </div>
+                        <div id="console-log" class="console-log" style="height: 640px;">
+                            <div class="log-line info">准备中...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 设置抽屉 (Folded Settings) -->
+    <div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer(false)"></div>
+    <div class="settings-drawer" id="settings-drawer">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+            <h3 style="font-size: 20px;">检测设置</h3>
+            <button class="btn btn-ghost" onclick="toggleDrawer(false)" style="font-size: 24px;">&times;</button>
+        </div>
+
+        <div class="tab-nav">
+            <button class="tab-btn active" data-tab="manual">手动任务</button>
+            <button class="tab-btn" data-tab="auto">自动巡检</button>
+        </div>
+
+        <!-- 手动 -->
+        <div id="manual-tab" class="tab-content">
+            <form id="scan-form">
+                <div class="form-group">
+                    <label>CPA 服务</label>
+                    <select id="cpa-service" name="service_id" required></select>
+                </div>
+                <div class="form-group">
+                    <label>针对账号类型</label>
+                    <input type="text" name="target_type" value="codex">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>周额度阈值 %</label>
+                        <input type="number" name="weekly_threshold" value="95">
+                    </div>
+                    <div class="form-group">
+                        <label>5H 阈值 %</label>
+                        <input type="number" name="primary_threshold" value="95">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label"
+                        style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" name="allow_disabled">
+                        <span style="font-size: 13px;">包含已禁用账号</span>
+                    </label>
+                </div>
+            </form>
+            <div style="margin-top: 24px; border-top: 1px solid var(--border-light); padding-top: 20px;">
+                <button type="button" id="save-scan-config-btn" class="btn btn-secondary btn-block"
+                    style="height: 44px;">保存检测配置</button>
+                <p style="text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 10px;">
+                    保存后，下次打开设置将自动填充上次的配置。</p>
+            </div>
+        </div>
+
+        <!-- 自动 -->
+        <div id="auto-tab" class="tab-content" style="display: none;">
+            <form id="patrol-form">
+                <div class="drawer-section">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <span style="font-weight: 700; font-size: 14px; color: var(--text-primary);">巡检总开关</span>
+                        <label class="switch-btn">
+                            <input type="checkbox" id="patrol-enabled-toggle">
+                            <span class="slider"></span>
+                        </label>
+                        <input type="hidden" name="enabled" id="patrol-enabled-hidden">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 2;">
+                            <label>巡检关联 CPA (监测此平台)</label>
+                            <select id="patrol-cpa-service" name="service_id"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>紧急防御</label>
+                            <p
+                                style="text-align: left; font-size: 11px; color: var(--text-muted); margin-top: 8px; margin-bottom: 8px;">
+                                开启后，当就绪账号占比过低时，自动清理并重试。
+                            </p>
+                            <label class="switch-btn">
+                                <input type="checkbox" name="emergency_defense" id="patrol-emergency-toggle"
+                                    onchange="toggleEmergencyConfigVisibility()">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="emergency-config-group"
+                        style="display: none; border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 12px; margin-top: 4px; background: rgba(255,149,0,0.02);">
+                        <div class="form-row" style="margin-bottom: 0;">
+                            <div class="form-group">
+                                <label>触发阈值 (就绪率 < %)</label>
+                                        <input type="number" id="emergency-threshold-pct" name="emergency_threshold_pct"
+                                            value="50" min="1" max="99">
+                                        <input type="hidden" name="emergency_threshold" id="emergency-threshold-hidden"
+                                            value="0.5">
+                            </div>
+                            <div class="form-group">
+                                <label>重试冷却 (分钟)</label>
+                                <input type="number" name="emergency_cooldown_minutes" value="5" min="1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="drawer-section">
+                    <h4 style="margin: 0 0 16px 0; font-size: 13px; font-weight: 700; color: var(--text-primary);">检测配置
+                    </h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>监测间隔 (分)</label>
+                            <input type="number" name="interval_minutes" value="60">
+                        </div>
+                        <div class="form-group">
+                            <label>目标类型 (如 codex)</label>
+                            <input type="text" name="target_type" value="codex">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>巡检模式</label>
+                            <select name="mode">
+                                <option value="all">全量 (401 + 额度)</option>
+                                <option value="401">仅测 401</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>检测并发 (线程数)</label>
+                            <input type="number" name="patrol_workers" value="20">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>401 失败动作</label>
+                            <select name="action_401">
+                                <option value="none">忽略 (仅记录状态)</option>
+                                <option value="delete">删除 (从平台移除并标记无效)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>额度耗尽动作</label>
+                            <select name="action_quota">
+                                <option value="none">忽略 (仅记录状态)</option>
+                                <option value="close">自动关闭 (仅在平台关闭)</option>
+                                <option value="delete">删除 (从平台移除并标记无效)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 自动扩容 / 补货 -->
+                <div class="drawer-section"
+                    style="border: 1px solid var(--accent); border-radius: var(--radius); padding: 16px; background: rgba(0,122,255,0.02);">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--accent);">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5" style="margin-right: 4px; vertical-align: middle;">
+                                <path d="M12 5v14M5 12h14" />
+                            </svg>
+                            自动扩容 / 补货
+                        </h4>
+                        <label class="checkbox-label" style="margin: 0;">
+                            <input type="checkbox" name="auto_replenish">
+                        </label>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 16px;">当就绪账号少于阈值时，自动启动后台注册任务。
+                    </p>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>触发阈值 (小于X个)</label>
+                            <input type="number" name="replenish_threshold" value="10">
+                        </div>
+                        <div class="form-group">
+                            <label>补货数量 (个)</label>
+                            <input type="number" name="replenish_count" value="5">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>补货邮箱服务</label>
+                        <select id="replenish-email-service" name="replenish_email_service_id">
+                            <option value="">加载中...</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>注册模式</label>
+                        <select id="replenish-reg-mode" name="replenish_reg_mode"
+                            onchange="toggleReplenishVisibility()">
+                            <option value="pipeline">单线程模式 (串行)</option>
+                            <option value="parallel">多线程模式 (并行)</option>
+                        </select>
+                    </div>
+
+                    <!-- 并行模式：仅显示线程数 -->
+                    <div id="replenish-concurrency-group" style="display: none;">
+                        <div class="form-group">
+                            <label>并发线程数 (1-50)</label>
+                            <input type="number" name="replenish_concurrency" value="5" min="1" max="50">
+                        </div>
+                    </div>
+
+                    <!-- 串行模式：显示间隔设置 -->
+                    <div id="replenish-pipeline-group">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>最小间隔 (秒)</label>
+                                <input type="number" name="replenish_interval_min" value="1" min="0">
+                            </div>
+                            <div class="form-group">
+                                <label>最大间隔 (秒)</label>
+                                <input type="number" name="replenish_interval_max" value="5" min="1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 32px;">
+                    <div style="display: flex; gap: 12px;">
+                        <button type="button" id="test-replenish-btn" class="btn btn-secondary"
+                            style="height: 48px; flex: 1;">测试补货</button>
+                        <button type="button" id="save-patrol-btn" class="btn btn-primary"
+                            style="height: 48px; flex: 2;">保存所有巡检配置</button>
+                    </div>
+                    <p style="text-align: center; font-size: 11px; color: var(--text-muted); margin-top: 12px;">
+                        巡检配置保存后将立即按新参数运行。</p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 进度模态 -->
+    <div class="modal" id="progress-modal">
+        <div class="modal-content" style="max-width: 400px; padding: 40px;">
+            <div style="text-align: center;">
+                <h3 id="progress-title" style="margin-bottom: 8px;">同步中</h3>
+                <p id="progress-status" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 24px;">
+                    初始化...</p>
+                <div class="progress-bar-container" style="height: 8px; margin-bottom: 24px;">
+                    <div id="modal-progress-bar" class="progress-bar" style="width: 0%"></div>
+                </div>
+                <button class="btn btn-secondary btn-sm" id="hide-progress-btn">转入后台</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="background-task-bar" class="background-task-bar">
+        <div class="background-task-title">
+            <div>
+                <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">后台任务进行中</div>
+                <div id="background-task-title" class="background-task-meta">等待任务启动...</div>
+            </div>
+            <span id="background-task-state" class="status-pill pending">运行中</span>
+        </div>
+        <div id="background-task-progress" class="background-task-meta">任务进度: 0 / 0</div>
+        <div class="progress-bar-container" style="height: 8px;">
+            <div id="background-task-progress-bar" class="progress-bar" style="width: 0%"></div>
+        </div>
+        <div class="background-task-actions">
+            <button class="btn btn-ghost btn-sm" id="background-task-close-btn">关闭提示</button>
+            <button class="btn btn-primary btn-sm" id="background-task-open-btn">查看进度</button>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js?v={{ static_version }}"></script>
+    <script src="/static/js/cliproxy.js?v={{ static_version }}"></script>
+    <script>
+        function toggleDrawer(open) {
+            document.getElementById('settings-drawer').classList.toggle('open', open);
+            document.getElementById('drawer-overlay').classList.toggle('active', open);
+        }
+    </script>
+</body>
+
+</html>

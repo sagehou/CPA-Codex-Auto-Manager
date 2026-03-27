@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统设置 - Codex</title>
+    <link rel="stylesheet" href="/static/css/style.css?v={{ static_version }}">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23007AFF'/><circle cx='50' cy='50' r='20' fill='white'/></svg>">
+    <style>
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 40px;
+        }
+
+        .settings-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .settings-nav-item {
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            background: transparent;
+            text-align: left;
+        }
+
+        .settings-nav-item:hover {
+            background: var(--border-light);
+            color: var(--text-primary);
+        }
+
+        .settings-nav-item.active {
+            background: var(--accent-light);
+            color: var(--accent);
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .service-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .service-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            background: var(--bg-system);
+            border-radius: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="">
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>CPA-Codex-Manager</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link">账号注册</a>
+                <a href="/accounts" class="nav-link">账号管理</a>
+                <a href="/cliproxy-cleaner" class="nav-link">CPA 检测</a>
+                <a href="/email-services" class="nav-link">邮箱服务</a>
+                <a href="/settings" class="nav-link active">系统设置</a>
+                <a href="/logout" class="nav-link">退出</a>
+            </div>
+            <button class="theme-toggle" onclick="theme.toggle()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5" />
+                    <path
+                        d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                </svg>
+            </button>
+        </nav>
+
+        <main class="container main-content">
+            <div class="page-header">
+                <h2>系统设置</h2>
+                <p class="subtitle">管理注册引擎、代理、CPA 平台及系统安全</p>
+            </div>
+
+            <div class="settings-grid">
+                <!-- 侧边导航 -->
+                <aside class="settings-nav">
+                    <button class="settings-nav-item tab-btn active" data-tab="registration">注册配置</button>
+                    <button class="settings-nav-item tab-btn" data-tab="proxy">代理设置</button>
+                    <button class="settings-nav-item tab-btn" data-tab="integrations">平台集成</button>
+                    <button class="settings-nav-item tab-btn" data-tab="email-code">验证码设置</button>
+                    <button class="settings-nav-item tab-btn" data-tab="webui">系统安全</button>
+                    <button class="settings-nav-item tab-btn" data-tab="database">数据管理</button>
+                </aside>
+
+                <!-- 内容区 -->
+                <div class="settings-content">
+                    <!-- 注册配置 -->
+                    <div id="registration-tab" class="tab-content active">
+                        <form id="registration-settings-form">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3>引擎核心参数</h3>
+                                </div>
+                                <div class="card-body">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="max-retries">最大重试次数</label>
+                                            <input type="number" id="max-retries" name="max_retries" min="0" max="10">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="timeout">超时时间 (秒)</label>
+                                            <input type="number" id="timeout" name="timeout" min="30" max="600">
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="sleep-min">最小间隔 (秒)</label>
+                                            <input type="number" id="sleep-min" name="sleep_min" min="0">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="sleep-max">最大间隔 (秒)</label>
+                                            <input type="number" id="sleep-max" name="sleep_max" min="0">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="password-length">默认密码长度</label>
+                                        <input type="number" id="password-length" name="default_password_length" min="8"
+                                            max="32">
+                                    </div>
+
+                                    <div class="card"
+                                        style="margin: 24px -24px -24px; border: none; border-top: 1px solid var(--border); border-radius: 0;">
+                                        <div class="card-header">
+                                            <h3>Outlook 默认配置 (可选)</h3>
+                                        </div>
+                                        <div class="card-body">
+                                            <form id="outlook-settings-form">
+                                                <div class="form-group">
+                                                    <label for="outlook-default-client-id">默认 Client ID</label>
+                                                    <input type="text" id="outlook-default-client-id"
+                                                        placeholder="留空则不使用">
+                                                </div>
+                                                <button type="submit" class="btn btn-secondary btn-sm"
+                                                    style="margin-top: 12px;">保存 Outlook 配置</button>
+                                            </form>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-actions" style="margin-top: 24px; border: none; padding: 0;">
+                                        <button type="submit" class="btn btn-primary">保存引擎配置</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- 代理设置 -->
+                    <div id="proxy-tab" class="tab-content">
+                        <div class="card" style="margin-bottom: 24px;">
+                            <div class="card-header">
+                                <h3>提取式动态代理</h3>
+                            </div>
+                            <div class="card-body">
+                                <form id="dynamic-proxy-form">
+                                    <div class="form-group">
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                            <input type="checkbox" id="dynamic-proxy-enabled">
+                                            <span style="font-size: 14px;">启用动态代理自动更新</span>
+                                        </label>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="dynamic-proxy-api-url">提取 API 链接</label>
+                                        <input type="text" id="dynamic-proxy-api-url"
+                                            placeholder="http://api.proxy.com/get?num=1">
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="dynamic-proxy-api-key-header">Auth Header (可选)</label>
+                                            <input type="text" id="dynamic-proxy-api-key-header"
+                                                placeholder="X-API-Key">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="dynamic-proxy-result-field">结果字段路径 (可选)</label>
+                                            <input type="text" id="dynamic-proxy-result-field"
+                                                placeholder="data[0].ip_port">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="dynamic-proxy-api-key">API Key / Token (可选)</label>
+                                        <input type="password" id="dynamic-proxy-api-key" placeholder="API 访问验证密钥">
+                                    </div>
+                                    <div class="form-actions"
+                                        style="margin-top: 24px; border: none; padding: 0; display: flex; gap: 12px;">
+                                        <button type="submit" class="btn btn-primary">保存动态代理</button>
+                                        <button type="button" id="test-dynamic-proxy-btn"
+                                            class="btn btn-secondary">测试提取</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header" style="justify-content: space-between;">
+                                <h3>代理列表</h3>
+                                <div style="display: flex; gap: 8px;">
+                                    <button class="btn btn-secondary btn-sm" id="test-all-proxies-btn">全部测试</button>
+                                    <button class="btn btn-primary btn-sm" id="add-proxy-btn">添加代理</button>
+                                </div>
+                            </div>
+                            <div class="card-body" style="padding: 0;">
+                                <div class="table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 40px;">ID</th>
+                                                <th>备注名称</th>
+                                                <th style="width: 80px;">类型</th>
+                                                <th>地址 (Host:Port)</th>
+                                                <th style="width: 80px;">默认</th>
+                                                <th style="width: 60px;">启用</th>
+                                                <th style="width: 140px;">最后成功</th>
+                                                <th style="width: 150px;">操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="proxies-table"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 平台集成 -->
+                    <div id="integrations-tab" class="tab-content">
+                        <div class="card">
+                            <div class="card-header" style="justify-content: space-between;">
+                                <h3>CPA 平台集成</h3>
+                                <button class="btn btn-primary btn-sm" id="add-cpa-service-btn">添加服务</button>
+                            </div>
+                            <div class="card-body" style="padding: 0;">
+                                <div class="table-container">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>名称</th>
+                                                <th>API 地址</th>
+                                                <th style="width: 60px;">启用</th>
+                                                <th style="width: 60px;">优先</th>
+                                                <th style="width: 160px;">操作</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="cpa-services-table"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 验证码设置 -->
+                    <div id="email-code-tab" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>邮件验证码获取配置</h3>
+                            </div>
+                            <div class="card-body">
+                                <form id="email-code-form">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label for="email-code-timeout">等待超时 (秒)</label>
+                                            <input type="number" id="email-code-timeout" min="30" max="600">
+                                        </div>
+                                        <div class="form-group">
+                                            <label for="email-code-poll-interval">查询间隔 (秒)</label>
+                                            <input type="number" id="email-code-poll-interval" min="1" max="30">
+                                        </div>
+                                    </div>
+                                    <div class="form-actions" style="margin-top: 24px; border: none; padding: 0;">
+                                        <button type="submit" class="btn btn-primary">保存验证码配置</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 系统安全 -->
+                    <div id="webui-tab" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>控制台访问控制</h3>
+                            </div>
+                            <div class="card-body">
+                                <form id="webui-settings-form">
+                                    <div class="form-group">
+                                        <label for="webui-access-password">新访问密码</label>
+                                        <input type="password" id="webui-access-password" placeholder="留空则保持现状或取消密码">
+                                        <small
+                                            style="display: block; margin-top: 8px; color: var(--text-muted);">修改后下次进入控制台需输入新密码。</small>
+                                    </div>
+                                    <div class="form-actions" style="margin-top: 24px; border: none; padding: 0;">
+                                        <button type="submit" class="btn btn-primary">更新访问密码</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 数据管理 -->
+                    <div id="database-tab" class="tab-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>系统维护</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="info-grid" style="margin-bottom: 32px;">
+                                    <div class="info-item">
+                                        <span class="label">数据库大小</span>
+                                        <span class="value" id="db-size">加载中...</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">注册账号数</span>
+                                        <span class="value" id="db-accounts">加载中...</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">邮箱配置数</span>
+                                        <span class="value" id="db-services">加载中...</span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="label">历史任务数</span>
+                                        <span class="value" id="db-tasks">加载中...</span>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 12px;">
+                                    <button class="btn btn-secondary" id="backup-btn">备份数据库</button>
+                                    <button class="btn btn-danger" id="cleanup-btn"
+                                        title="清理 30 天前的过期任务日志">清理过期数据</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 模态框：代理编辑 -->
+    <div class="modal" id="add-proxy-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="proxy-modal-title">添加代理</h3>
+            </div>
+            <div class="modal-body">
+                <form id="proxy-item-form">
+                    <input type="hidden" id="proxy-item-id">
+                    <div class="form-group">
+                        <label for="proxy-item-name">备注名称</label>
+                        <input type="text" id="proxy-item-name" required placeholder="如: 香港动态">
+                    </div>
+                    <div class="form-group">
+                        <label for="proxy-item-host">主机 (Host)</label>
+                        <input type="text" id="proxy-item-host" required placeholder="127.0.0.1">
+                    </div>
+                    <div class="form-group">
+                        <label for="proxy-item-port">端口 (Port)</label>
+                        <input type="number" id="proxy-item-port" required placeholder="7890">
+                    </div>
+                    <div class="form-group">
+                        <label for="proxy-item-type">类型</label>
+                        <select id="proxy-item-type">
+                            <option value="http">HTTP</option>
+                            <option value="https">HTTPS</option>
+                            <option value="socks5">SOCKS5</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="proxy-item-username">用户名 (可选)</label>
+                            <input type="text" id="proxy-item-username">
+                        </div>
+                        <div class="form-group">
+                            <label for="proxy-item-password">密码 (可选)</label>
+                            <input type="password" id="proxy-item-password">
+                        </div>
+                    </div>
+                    <div class="form-actions"
+                        style="margin-top: 24px; border: none; padding: 0; display: flex; gap: 12px; justify-content: flex-end;">
+                        <button type="button" class="btn btn-secondary" id="cancel-proxy-btn">取消</button>
+                        <button type="submit" class="btn btn-primary" style="width: 100px;">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 模态框：CPA 服务编辑 -->
+    <div class="modal" id="cpa-service-edit-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="cpa-service-modal-title">CPA 服务配置</h3>
+            </div>
+            <div class="modal-body">
+                <form id="cpa-service-form">
+                    <input type="hidden" id="cpa-service-id">
+                    <div class="form-group">
+                        <label for="cpa-service-name">服务名称</label>
+                        <input type="text" id="cpa-service-name" required placeholder="我的 CPA 平台">
+                    </div>
+                    <div class="form-group">
+                        <label for="cpa-service-url">API 接口地址</label>
+                        <input type="text" id="cpa-service-url" required placeholder="https://api.cpa.com/v1">
+                    </div>
+                    <div class="form-group">
+                        <label for="cpa-service-token">API 密钥 (Token)</label>
+                        <input type="password" id="cpa-service-token" placeholder="已保存密钥将被隐藏">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="cpa-service-priority">优先级</label>
+                            <input type="number" id="cpa-service-priority" value="0">
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end; padding-bottom: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="cpa-service-enabled" checked>
+                                <span style="font-size: 14px;">启用服务</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-actions"
+                        style="margin-top: 24px; border: none; padding: 0; display: flex; gap: 12px; justify-content: flex-end;">
+                        <button type="button" class="btn btn-secondary" id="cancel-cpa-service-btn">取消</button>
+                        <button type="button" class="btn btn-secondary" id="test-cpa-service-btn">测试连接</button>
+                        <button type="submit" class="btn btn-primary" style="width: 100px;">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js?v={{ static_version }}"></script>
+    <script src="/static/js/settings.js?v={{ static_version }}"></script>
+</body>
+
+</html>

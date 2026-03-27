@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPA-Codex-Manager</title>
+    <link rel="stylesheet" href="/static/css/style.css?v={{ static_version }}">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23007AFF'/><circle cx='50' cy='50' r='20' fill='white'/></svg>">
+    <style>
+        /* 两栏布局 */
+        .two-column-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 40px;
+            align-items: start;
+        }
+
+        .left-panel {
+            position: sticky;
+            top: 72px;
+        }
+
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* 任务状态概览 */
+        .task-status-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1px;
+            background: var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            border: 1px solid var(--border);
+            margin-bottom: 24px;
+        }
+
+        .task-status-item {
+            background: var(--bg-secondary);
+            padding: 16px;
+            text-align: center;
+        }
+
+        .task-status-item .label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .task-status-item .value {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 15px;
+        }
+
+        .password-hidden {
+            filter: blur(4px);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .password-hidden:hover {
+            filter: blur(0);
+        }
+
+        .multi-select-dropdown {
+            position: relative;
+            width: 100%;
+            font-size: 14px;
+        }
+
+        .msd-trigger {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            background: var(--bg-system);
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+
+        .msd-trigger:hover {
+            border-color: var(--text-muted);
+        }
+
+        .msd-list {
+            display: none;
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .msd-dropdown.open .msd-list {
+            display: block;
+        }
+
+        .msd-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+        }
+
+        .msd-item:hover {
+            background: var(--bg-system);
+        }
+
+        .progress-bar-container {
+            background: var(--bg-system);
+            border-radius: var(--radius-full);
+            height: 6px;
+            overflow: hidden;
+            margin: 12px 0;
+        }
+
+        .progress-bar {
+            background: var(--accent);
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        @media (max-width: 1024px) {
+            .two-column-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .left-panel {
+                position: static;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <h1>CPA-Codex-Manager</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="nav-link active">账号注册</a>
+                <a href="/accounts" class="nav-link">账号管理</a>
+                <a href="/cliproxy-cleaner" class="nav-link">CPA 检测</a>
+                <a href="/email-services" class="nav-link">邮箱服务</a>
+                <a href="/settings" class="nav-link">系统设置</a>
+                <a href="/logout" class="nav-link">退出</a>
+            </div>
+            <div style="display: flex; align-items: center;">
+                <button class="theme-toggle" onclick="theme.toggle()" title="切换主题">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5" />
+                        <path
+                            d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+                    </svg>
+                </button>
+            </div>
+        </nav>
+
+        <main class="container main-content">
+            <div class="page-header">
+                <h2>账号注册</h2>
+                <p class="subtitle">快速创建和管理您的账户</p>
+            </div>
+
+            <div class="two-column-layout">
+                <!-- 注册设置 -->
+                <div class="left-panel">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>注册配置</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="registration-form">
+                                <div class="form-group">
+                                    <label>邮箱服务</label>
+                                    <div class="select-trigger" id="email-service-trigger">
+                                        <span class="select-trigger-text" id="email-service-display">请选择服务...</span>
+                                        <span class="select-trigger-icon">▼</span>
+                                    </div>
+                                    <input type="hidden" id="email-service" name="email_service" value="">
+                                </div>
+
+                                <!-- Outlook 批量模式 -->
+                                <div id="outlook-batch-section" style="display: none;">
+                                    <div class="form-group">
+                                        <label>选择账号</label>
+                                        <div id="outlook-accounts-container"
+                                            style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; background: var(--bg-system);">
+                                            <div class="loading-placeholder"
+                                                style="text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px;">
+                                                加载中...
+                                            </div>
+                                        </div>
+                                        <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                                            <button type="button" class="btn btn-secondary btn-sm"
+                                                onclick="selectAllOutlookAccounts()">全选</button>
+                                            <button type="button" class="btn btn-secondary btn-sm"
+                                                onclick="selectUnregisteredOutlook()">仅未注册</button>
+                                            <button type="button" class="btn btn-secondary btn-sm"
+                                                onclick="deselectAllOutlookAccounts()">取消全选</button>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="outlook-concurrency-mode">运行模式</label>
+                                        <select id="outlook-concurrency-mode" name="outlook_concurrency_mode">
+                                            <option value="pipeline">单线程模式 (串行)</option>
+                                            <option value="parallel">多线程模式 (并行)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" id="outlook-concurrency-count-group" style="display: none;">
+                                        <label for="outlook-concurrency-count">线程数 (1-50)</label>
+                                        <input type="number" id="outlook-concurrency-count"
+                                            name="outlook_concurrency_count" min="1" max="50" value="5">
+                                    </div>
+                                    <div id="outlook-interval-group">
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label for="outlook-interval-min">最小间隔 (秒)</label>
+                                                <input type="number" id="outlook-interval-min"
+                                                    name="outlook_interval_min" min="0" max="300" value="5">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="outlook-interval-max">最大间隔 (秒)</label>
+                                                <input type="number" id="outlook-interval-max"
+                                                    name="outlook_interval_max" min="1" max="600" value="30">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                            <input type="checkbox" id="outlook-skip-registered" checked>
+                                            <span style="font-size: 13px;">跳过已注册账号</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" id="reg-mode-group">
+                                    <label for="reg-mode">注册模式</label>
+                                    <select id="reg-mode" name="reg_mode">
+                                        <option value="single">单次注册</option>
+                                        <option value="batch">批量注册</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group" id="batch-count-group" style="display: none;">
+                                    <label for="batch-count">注册数量 (1-1000)</label>
+                                    <input type="number" id="batch-count" name="batch_count" min="1" max="1000"
+                                        value="5">
+                                </div>
+
+                                <div id="batch-options" style="display: none;">
+                                    <div class="form-group">
+                                        <label for="concurrency-mode">运行模式</label>
+                                        <select id="concurrency-mode" name="concurrency_mode">
+                                            <option value="pipeline">单线程模式 (串行)</option>
+                                            <option value="parallel">多线程模式 (并行)</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" id="concurrency-count-group" style="display: none;">
+                                        <label for="concurrency-count">线程数 (1-50)</label>
+                                        <input type="number" id="concurrency-count" name="concurrency_count" min="1"
+                                            max="50" value="5">
+                                    </div>
+                                    <div id="interval-group">
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label for="interval-min">最小间隔 (秒)</label>
+                                                <input type="number" id="interval-min" name="interval_min" min="0"
+                                                    max="300" value="5">
+                                            </div>
+                                            <div class="form-group">
+                                                <label for="interval-max">最大间隔 (秒)</label>
+                                                <input type="number" id="interval-max" name="interval_max" min="1"
+                                                    max="600" value="30">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" id="auto-upload-group">
+                                    <label
+                                        style="font-weight: 600; font-size: 13px; margin-bottom: 12px; display: block; color: var(--text-primary);">注册后自动上传</label>
+
+                                    <label
+                                        style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 10px;">
+                                        <input type="checkbox" id="auto-upload-cpa">
+                                        <span style="font-size: 13px;">上传至 CPA 平台</span>
+                                    </label>
+                                    <div id="cpa-service-select-group"
+                                        style="display:none; margin-bottom: 12px; padding-left: 20px;">
+                                        <div class="multi-select-dropdown" id="cpa-service-select"></div>
+                                    </div>
+
+                                    <!-- Sub2API / TM 隐藏占位，兼容 app.js 逻辑 -->
+                                    <input type="checkbox" id="auto-upload-sub2api" style="display:none">
+                                    <div id="sub2api-service-select-group" style="display:none;">
+                                        <div class="multi-select-dropdown" id="sub2api-service-select"></div>
+                                    </div>
+                                    <input type="checkbox" id="auto-upload-tm" style="display:none">
+                                    <div id="tm-service-select-group" style="display:none;">
+                                        <div class="multi-select-dropdown" id="tm-service-select"></div>
+                                    </div>
+                                </div>
+
+                                <div class="form-actions" style="flex-direction: column; gap: 12px; margin-top: 32px;">
+                                    <button type="submit" class="btn btn-primary btn-lg" id="start-btn"
+                                        style="width: 100%;">
+                                        开始注册
+                                    </button>
+                                    <button type="button" class="btn btn-secondary btn-lg" id="cancel-btn" disabled
+                                        style="width: 100%;">
+                                        取消任务
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右侧 - 实时监控 -->
+                <div class="right-panel">
+                    <!-- 控制台 -->
+                    <div class="card" id="console-card">
+                        <div class="card-header" style="align-items: center;">
+                            <h3 style="display: flex; align-items: center; gap: 10px; margin: 0;">
+                                实时监控
+                                <span id="task-status-badge" class="status-badge pending"
+                                    style="display: none;">等待中</span>
+                            </h3>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <select id="monitor-task-selector" class="input btn-sm"
+                                    style="width: 140px; height: 28px; font-size: 12px; padding: 0 8px; display: none;">
+                                    <option value="">切换监听任务...</option>
+                                </select>
+                                <button class="btn btn-ghost btn-sm" id="clear-log-btn">清空日志</button>
+                            </div>
+                        </div>
+                        <div class="card-body" style="padding: 0;">
+                            <!-- 单一任务状态 -->
+                            <div class="task-status-row" id="task-status-row" style="display: none;">
+                                <div class="task-status-item">
+                                    <div class="label">任务 ID</div>
+                                    <div class="value" id="task-id">-</div>
+                                </div>
+                                <div class="task-status-item">
+                                    <div class="label">邮箱地址</div>
+                                    <div class="value" id="task-email">-</div>
+                                </div>
+                                <div class="task-status-item">
+                                    <div class="label">服务商</div>
+                                    <div class="value" id="task-service">-</div>
+                                </div>
+                                <div class="task-status-item">
+                                    <div class="label">状态</div>
+                                    <div class="value" id="task-status">-</div>
+                                </div>
+                            </div>
+
+                            <!-- 批量任务进度 -->
+                            <div id="batch-progress-section"
+                                style="display: none; padding: 24px 32px; border-bottom: 1px solid var(--border);">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                    <span id="batch-progress-text"
+                                        style="font-size: 13px; font-weight: 600; color: var(--text-secondary);">0 /
+                                        0</span>
+                                    <span id="batch-progress-percent"
+                                        style="font-size: 13px; font-weight: 600; color: var(--accent);">0%</span>
+                                </div>
+                                <div class="progress-bar-container">
+                                    <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+                                </div>
+                                <div class="batch-stats" style="margin-top: 16px; display: flex; gap: 32px;">
+                                    <div><span class="label"
+                                            style="font-size: 11px; color: var(--text-secondary);">成功</span><strong
+                                            id="batch-success"
+                                            style="display: block; font-size: 20px; color: #34C759;">0</strong></div>
+                                    <div><span class="label"
+                                            style="font-size: 11px; color: var(--text-secondary);">失败</span><strong
+                                            id="batch-failed"
+                                            style="display: block; font-size: 20px; color: #FF3B30;">0</strong></div>
+                                    <div><span class="label"
+                                            style="font-size: 11px; color: var(--text-secondary);">剩余</span><strong
+                                            id="batch-remaining"
+                                            style="display: block; font-size: 20px; color: var(--text-primary);">0</strong>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 日志输出 -->
+                            <div id="console-log" class="console-log">
+                                <div class="log-line info">准备就绪，点击“开始注册”以启动。</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 最近注册账号 -->
+                    <div class="card">
+                        <div class="card-header" style="align-items: center;">
+                            <h3>最近注册</h3>
+                            <div style="display: flex; gap: 12px; align-items: center;">
+                                <button class="btn btn-ghost btn-sm" id="refresh-accounts-btn">刷新</button>
+                                <a href="/accounts" class="btn btn-secondary btn-sm">查看全部</a>
+                            </div>
+                        </div>
+                        <div class="card-body" style="padding: 0;">
+                            <div class="table-container">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 80px;">ID</th>
+                                            <th>邮箱地址</th>
+                                            <th style="width: 140px;">账号密码</th>
+                                            <th style="width: 100px;">状态</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="recent-accounts-table">
+                                        <tr>
+                                            <td colspan="4">
+                                                <div
+                                                    style="padding: 40px; text-align: center; color: var(--text-muted); font-size: 14px;">
+                                                    暂无注册记录。
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    </div>
+    </main>
+
+    <!-- 邮箱服务选择模态框 -->
+    <div class="modal" id="email-service-modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>选择邮箱服务</h3>
+                <button class="modal-close-btn" id="close-email-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="service-selection-grid" id="email-service-list">
+                    <!-- 动态加载 -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/utils.js?v={{ static_version }}"></script>
+    <script src="/static/js/app.js?v={{ static_version }}"></script>
+</body>
+
+</html>
