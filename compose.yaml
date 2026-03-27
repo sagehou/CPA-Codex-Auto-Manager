@@ -1,6 +1,6 @@
 services:
   app:
-    image: nasqdz/CPA-Codex-Auto-Manager:latest
+    image: nasqdz/cpa-codex-auto-manager:latest
     ports:
       - "8000:8000"
     environment:
