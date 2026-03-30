@@ -33,6 +33,10 @@ class EmailServiceType(str, Enum):
     """邮箱服务类型"""
     TEMPMAIL = "tempmail"
     TEMP_MAIL = "temp_mail"
+    MOE_MAIL = "moe_mail"
+    DUCK_MAIL = "duck_mail"
+    FREEMAIL = "freemail"
+    IMAP_MAIL = "imap_mail"
     OUTLOOK = "outlook"
     CLOUD_MAIL = "cloud_mail"
 
