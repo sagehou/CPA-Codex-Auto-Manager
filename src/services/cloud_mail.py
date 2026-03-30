@@ -18,6 +18,9 @@ from ..config.constants import OTP_CODE_PATTERN
 
 logger = logging.getLogger(__name__)
 
+OPENAI_SENDER_HINTS = ("openai", "chatgpt", "tm.openai", "system@openai")
+OPENAI_SUBJECT_HINTS = ("openai", "chatgpt", "verification", "verify", "code", "验证码")
+
 
 class CloudMailService(BaseEmailService):
     """
@@ -386,6 +389,8 @@ class CloudMailService(BaseEmailService):
                     time.sleep(3)
                     continue
 
+                logger.info(f"CloudMail 轮询到 {len(emails)} 封邮件: {email}")
+
                 for email_item in emails:
                     email_id = email_item.get("emailId")
                     
@@ -398,8 +403,14 @@ class CloudMailService(BaseEmailService):
                     sender_email = str(email_item.get("sendEmail", "")).lower()
                     sender_name = str(email_item.get("sendName", "")).lower()
                     subject = str(email_item.get("subject", ""))
+                    subject_lower = subject.lower()
                     
-                    if "openai" not in sender_email and "openai" not in sender_name:
+                    is_openai_like_sender = any(hint in sender_email for hint in OPENAI_SENDER_HINTS) or any(
+                        hint in sender_name for hint in OPENAI_SENDER_HINTS
+                    )
+                    is_openai_like_subject = any(hint in subject_lower for hint in OPENAI_SUBJECT_HINTS)
+
+                    if not is_openai_like_sender and not is_openai_like_subject:
                         seen_ids.add(email_id)
                         continue
 
@@ -412,21 +423,32 @@ class CloudMailService(BaseEmailService):
                         self.update_status(True)
                         return code
 
-                    # 从内容提取
-                    content = str(email_item.get("content", ""))
-                    if content:
-                        clean_content = re.sub(r"<[^>]+>", " ", content)
+                    # 从 HTML / 文本正文提取
+                    content_sources = [
+                        str(email_item.get("content", "")),
+                        str(email_item.get("text", "")),
+                    ]
+                    for raw_content in content_sources:
+                        if not raw_content:
+                            continue
+
+                        clean_content = re.sub(r"<[^>]+>", " ", raw_content)
                         email_pattern = r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}"
                         clean_content = re.sub(email_pattern, "", clean_content)
-                        
+
                         match = re.search(pattern, clean_content)
                         if match:
                             code = match.group(1)
-                            print(f"[CloudMail] ✅ 找到验证码: {code}", flush=True)
+                            print(f"[CloudMail] 找到验证码: {code}", flush=True)
                             sys.stdout.flush()
                             seen_ids.add(email_id)
                             self.update_status(True)
                             return code
+
+                    logger.info(
+                        "CloudMail 候选邮件未提取到验证码: "
+                        f"id={email_id} sender={sender_email or sender_name} subject={subject[:80]}"
+                    )
                     
                     seen_ids.add(email_id)
 

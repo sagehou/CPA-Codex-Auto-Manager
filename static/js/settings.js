@@ -18,13 +18,6 @@ const elements = {
     serviceType: document.getElementById('service-type'),
     serviceConfigFields: document.getElementById('service-config-fields'),
     emailServicesTable: document.getElementById('email-services-table'),
-    // Outlook 导入
-    toggleImportBtn: document.getElementById('toggle-import-btn'),
-    outlookImportBody: document.getElementById('outlook-import-body'),
-    outlookImportBtn: document.getElementById('outlook-import-btn'),
-    clearImportBtn: document.getElementById('clear-import-btn'),
-    outlookImportData: document.getElementById('outlook-import-data'),
-    importResult: document.getElementById('import-result'),
     // 批量操作
     selectAllServices: document.getElementById('select-all-services'),
     // 代理列表
@@ -52,8 +45,6 @@ const elements = {
     testTmServiceBtn: document.getElementById('test-tm-service-btn'),
     // 验证码设置
     emailCodeForm: document.getElementById('email-code-form'),
-    // Outlook 设置
-    outlookSettingsForm: document.getElementById('outlook-settings-form'),
     // Web UI 访问控制
     webuiSettingsForm: document.getElementById('webui-settings-form')
 };
@@ -148,28 +139,6 @@ function initEventListeners() {
         elements.addServiceForm.addEventListener('submit', handleAddService);
     }
 
-    // Outlook 批量导入展开/折叠
-    if (elements.toggleImportBtn) {
-        elements.toggleImportBtn.addEventListener('click', () => {
-            const isHidden = elements.outlookImportBody.style.display === 'none';
-            elements.outlookImportBody.style.display = isHidden ? 'block' : 'none';
-            elements.toggleImportBtn.textContent = isHidden ? '收起' : '展开';
-        });
-    }
-
-    // Outlook 批量导入
-    if (elements.outlookImportBtn) {
-        elements.outlookImportBtn.addEventListener('click', handleOutlookBatchImport);
-    }
-
-    // 清空导入数据
-    if (elements.clearImportBtn) {
-        elements.clearImportBtn.addEventListener('click', () => {
-            elements.outlookImportData.value = '';
-            elements.importResult.style.display = 'none';
-        });
-    }
-
     // 全选/取消全选
     if (elements.selectAllServices) {
         elements.selectAllServices.addEventListener('change', (e) => {
@@ -221,11 +190,6 @@ function initEventListeners() {
         elements.emailCodeForm.addEventListener('submit', handleSaveEmailCode);
     }
 
-    // Outlook 设置
-    if (elements.outlookSettingsForm) {
-        elements.outlookSettingsForm.addEventListener('submit', handleSaveOutlookSettings);
-    }
-
     if (elements.webuiSettingsForm) {
         elements.webuiSettingsForm.addEventListener('submit', handleSaveWebuiSettings);
     }
@@ -262,15 +226,13 @@ async function loadSettings() {
         document.getElementById('password-length').value = data.registration?.default_password_length || 12;
         document.getElementById('sleep-min').value = data.registration?.sleep_min || 5;
         document.getElementById('sleep-max').value = data.registration?.sleep_max || 30;
+        document.getElementById('check-ip-location').checked = data.registration?.check_ip_location !== false;
 
         // 验证码等待配置
         if (data.email_code) {
             document.getElementById('email-code-timeout').value = data.email_code.timeout || 120;
             document.getElementById('email-code-poll-interval').value = data.email_code.poll_interval || 3;
         }
-
-        // 加载 Outlook 设置
-        loadOutlookSettings();
 
         // Web UI 访问密码提示
         if (data.webui?.has_access_password) {
@@ -399,6 +361,7 @@ async function handleSaveRegistration(e) {
         default_password_length: parseInt(document.getElementById('password-length').value),
         sleep_min: parseInt(document.getElementById('sleep-min').value),
         sleep_max: parseInt(document.getElementById('sleep-max').value),
+        check_ip_location: document.getElementById('check-ip-location').checked,
     };
 
     try {
@@ -579,93 +542,6 @@ function updateSelectedServices() {
     document.querySelectorAll('.service-checkbox:checked').forEach(cb => {
         selectedServiceIds.add(parseInt(cb.dataset.id));
     });
-}
-
-// Outlook 批量导入
-async function handleOutlookBatchImport() {
-    const data = elements.outlookImportData.value.trim();
-    if (!data) {
-        toast.warning('请输入要导入的数据');
-        return;
-    }
-
-    const enabled = document.getElementById('outlook-import-enabled').checked;
-    const priority = parseInt(document.getElementById('outlook-import-priority').value) || 0;
-
-    // 解析数据
-    const lines = data.split('\n').filter(line => line.trim() && !line.trim().startsWith('#'));
-    const accounts = [];
-    const errors = [];
-
-    lines.forEach((line, index) => {
-        const parts = line.split('----').map(p => p.trim());
-        if (parts.length < 2) {
-            errors.push(`第 ${index + 1} 行格式错误`);
-            return;
-        }
-
-        const account = {
-            email: parts[0],
-            password: parts[1],
-            client_id: parts[2] || null,
-            refresh_token: parts[3] || null,
-            enabled: enabled,
-            priority: priority
-        };
-
-        if (!account.email.includes('@')) {
-            errors.push(`第 ${index + 1} 行邮箱格式错误: ${account.email}`);
-            return;
-        }
-
-        accounts.push(account);
-    });
-
-    if (errors.length > 0) {
-        elements.importResult.style.display = 'block';
-        elements.importResult.innerHTML = `
-            <div class="import-errors">${errors.map(e => `<div>${e}</div>`).join('')}</div>
-        `;
-        return;
-    }
-
-    elements.outlookImportBtn.disabled = true;
-    elements.outlookImportBtn.innerHTML = '<span class="loading-spinner"></span> 导入中...';
-
-    let successCount = 0;
-    let failCount = 0;
-
-    try {
-        for (const account of accounts) {
-            try {
-                await api.post('/email-services', {
-                    service_type: 'outlook',
-                    name: account.email,
-                    config: {
-                        email: account.email,
-                        password: account.password,
-                        client_id: account.client_id,
-                        refresh_token: account.refresh_token
-                    },
-                    enabled: account.enabled,
-                    priority: account.priority
-                });
-                successCount++;
-            } catch {
-                failCount++;
-            }
-        }
-
-        elements.importResult.style.display = 'block';
-        toast.success(`导入完成，成功 ${successCount} 个`);
-        loadEmailServices();
-
-    } catch (error) {
-        toast.error('导入失败: ' + error.message);
-    } finally {
-        elements.outlookImportBtn.disabled = false;
-        elements.outlookImportBtn.textContent = '📥 开始导入';
-    }
 }
 
 // HTML 转义
@@ -897,35 +773,6 @@ async function handleTestAllProxies() {
 }
 
 
-// ============================================================================
-// Outlook 设置管理
-// ============================================================================
-
-// 加载 Outlook 设置
-async function loadOutlookSettings() {
-    try {
-        const data = await api.get('/settings/outlook');
-        const el = document.getElementById('outlook-default-client-id');
-        if (el) el.value = data.default_client_id || '';
-    } catch (error) {
-        console.error('加载 Outlook 设置失败:', error);
-    }
-}
-
-// 保存 Outlook 设置
-async function handleSaveOutlookSettings(e) {
-    e.preventDefault();
-    const data = {
-        default_client_id: document.getElementById('outlook-default-client-id').value
-    };
-    try {
-        await api.post('/settings/outlook', data);
-        toast.success('Outlook 设置已保存');
-    } catch (error) {
-        toast.error('保存失败: ' + error.message);
-    }
-}
-
 // ============== 动态代理设置 ==============
 
 async function handleSaveDynamicProxy(e) {
@@ -996,7 +843,7 @@ function renderTmServicesTable(services) {
         <tr>
             <td>${escapeHtml(s.name)}</td>
             <td style="font-size:0.85rem;color:var(--text-muted);">${escapeHtml(s.api_url)}</td>
-            <td style="text-align:center;" title="${s.enabled ? '已启用' : '已禁用'}">${s.enabled ? '✅' : '⭕'}</td>
+            <td style="text-align:center;" title="${s.enabled ? '已启用' : '已禁用'}">${s.enabled ? '正常' : '禁用'}</td>
             <td style="text-align:center;">${s.priority}</td>
             <td style="white-space:nowrap;">
                 <button class="btn btn-secondary btn-sm" onclick="editTmService(${s.id})">编辑</button>
@@ -1322,7 +1169,7 @@ function renderSub2ApiServices(services) {
         <tr>
             <td>${escapeHtml(s.name)}</td>
             <td style="font-size:0.85rem;color:var(--text-muted);">${escapeHtml(s.api_url)}</td>
-            <td style="text-align:center;" title="${s.enabled ? '已启用' : '已禁用'}">${s.enabled ? '✅' : '⭕'}</td>
+            <td style="text-align:center;" title="${s.enabled ? '已启用' : '已禁用'}">${s.enabled ? '正常' : '禁用'}</td>
             <td style="text-align:center;">${s.priority}</td>
             <td style="white-space:nowrap;">
                 <button class="btn btn-secondary btn-sm" onclick="editSub2ApiService(${s.id})">编辑</button>

@@ -1,0 +1,372 @@
+"""
+V2 registration engine.
+"""
+
+import inspect
+import logging
+import time
+from datetime import datetime
+from typing import Any, Callable, Dict, List, Optional
+
+from ..config.settings import get_settings
+from ..database import crud
+from ..database.session import get_db
+from .registration_result import RegistrationResult
+from .openai.chatgpt_client_v2 import ChatGPTClient
+from .openai.chatgpt_flow_utils import (
+    generate_random_birthday,
+    generate_random_name,
+    generate_random_password,
+)
+
+
+logger = logging.getLogger(__name__)
+
+
+class EmailServiceAdapter:
+    """Adapt project email services to the V2 state machine."""
+
+    def __init__(self, email_service, email_info: Optional[Dict[str, Any]], log_fn: Callable[[str], None]):
+        self.email_service = email_service
+        self.email_info = email_info or {}
+        self.log_fn = log_fn
+        self._used_codes = set()
+        self._signature = inspect.signature(self.email_service.get_verification_code)
+
+    def wait_for_verification_code(
+        self,
+        email: str,
+        timeout: int = 60,
+        otp_sent_at: Optional[float] = None,
+        exclude_codes=None,
+    ):
+        self.log_fn(f"正在等待邮箱 {email} 的验证码 ({timeout}s)...")
+        kwargs = {
+            "email": email,
+            "email_id": self.email_info.get("service_id"),
+            "timeout": timeout,
+            "otp_sent_at": otp_sent_at,
+        }
+        if "exclude_codes" in self._signature.parameters:
+            kwargs["exclude_codes"] = exclude_codes or self._used_codes
+        code = self.email_service.get_verification_code(**kwargs)
+        if code:
+            self._used_codes.add(code)
+            self.log_fn(f"成功获取验证码: {code}")
+        return code
+
+
+class RegistrationEngineV2:
+    """Registration engine using the V2 ChatGPT state machine."""
+
+    def __init__(
+        self,
+        email_service,
+        proxy_url: Optional[str] = None,
+        browser_mode: str = "protocol",
+        callback_logger: Optional[Callable[[str], None]] = None,
+        task_uuid: Optional[str] = None,
+        status_callback: Optional[Callable[[str, Any], None]] = None,
+        max_retries: Optional[int] = None,
+    ):
+        self.email_service = email_service
+        self.proxy_url = proxy_url
+        self.browser_mode = browser_mode or "protocol"
+        self.callback_logger = callback_logger or (lambda msg: logger.info(msg))
+        self.task_uuid = task_uuid
+        self.status_callback = status_callback
+
+        settings = get_settings()
+        self.max_retries = max(1, int(max_retries or settings.registration_max_retries or 3))
+        self.default_password_length = max(12, int(getattr(settings, "registration_default_password_length", 12) or 12))
+
+        self.email: Optional[str] = None
+        self.password: Optional[str] = None
+        self.email_info: Optional[Dict[str, Any]] = None
+        self.logs: List[str] = []
+
+    def _log(self, message: str, level: str = "info"):
+        tags = {
+            "info": "信息",
+            "success": "成功",
+            "warning": "警告",
+            "error": "错误",
+            "system": "系统",
+        }
+        log_message = f"[{tags.get(level.lower(), level.upper())}] {message}"
+        self.logs.append(log_message)
+        self.callback_logger(log_message)
+        if level == "error":
+            logger.error(message)
+        elif level == "warning":
+            logger.warning(message)
+        else:
+            logger.info(message)
+
+    def _should_retry(self, message: str) -> bool:
+        text = str(message or "").lower()
+        retriable_markers = [
+            "tls",
+            "ssl",
+            "curl: (35)",
+            "预授权被拦截",
+            "authorize",
+            "registration_disallowed",
+            "http 400",
+            "创建账号失败",
+            "未获取到 authorization code",
+            "consent",
+            "workspace",
+            "organization",
+            "otp",
+            "验证码",
+            "session",
+            "accesstoken",
+            "next-auth",
+        ]
+        return any(marker in text for marker in retriable_markers)
+
+    def _log_client_message(self, message: str):
+        """Translate V2 low-level client logs into the old stage-based style."""
+        text = str(message or "").strip()
+        if not text:
+            return
+
+        mapped = None
+        level = "info"
+
+        if text == "访问 ChatGPT 首页...":
+            mapped = "[阶段 2] 正在初始化授权会话..."
+        elif text == "获取 CSRF token...":
+            mapped = "[阶段 2] 正在获取授权上下文..."
+        elif text.startswith("CSRF token:"):
+            mapped = "[阶段 2] 授权上下文已就绪"
+        elif text.startswith("提交邮箱:"):
+            mapped = "[阶段 2] 正在提交身份核验..."
+        elif text.startswith("访问 authorize URL..."):
+            mapped = "[阶段 2] 正在建立授权链路..."
+        elif text.startswith("重定向到:"):
+            mapped = "[阶段 2] 授权入口已响应"
+        elif text.startswith("Authorize →"):
+            mapped = "[阶段 2] 身份核验已通过"
+        elif text.startswith("注册状态起点:"):
+            mapped = "[阶段 2] 已进入账号创建流程"
+        elif text == "全新注册流程":
+            mapped = "[阶段 3] 正在配置账号凭据..."
+        elif text.startswith("注册用户:"):
+            mapped = "正在提交账号凭据..."
+        elif text == "注册成功":
+            mapped = "账号凭据配置完成"
+        elif text == "触发发送验证码...":
+            mapped = "[阶段 4] 正在分发验证码..."
+        elif text == "等待邮箱验证码...":
+            mapped = "[阶段 5] 正在同步邮箱数据..."
+        elif text.startswith("验证 OTP 码:"):
+            mapped = "[阶段 6] 正在核验身份信息..."
+        elif text.startswith("验证成功"):
+            mapped = "身份核验完成"
+        elif text.startswith("完成账号创建:"):
+            mapped = "[阶段 7] 正在完成账户配置..."
+        elif text.startswith("create_account: 已生成 sentinel token"):
+            return
+        elif text.startswith("create_account: 未生成 sentinel token"):
+            mapped = "Sentinel 降级继续执行账户配置"
+            level = "warning"
+        elif text.startswith("账号创建成功"):
+            mapped = "账户配置完成"
+        elif text.startswith("follow ->"):
+            return
+        elif text.startswith("follow state ->"):
+            return
+        elif text.startswith("步骤 1/4:"):
+            mapped = "[阶段 8] 正在同步注册回调状态..."
+        elif text.startswith("步骤 2/4:"):
+            mapped = "[阶段 9] 正在同步会话令牌..."
+        elif text.startswith("步骤 3/4:"):
+            mapped = "[阶段 10] 正在获取账户访问令牌..."
+        elif text.startswith("步骤 4/4:"):
+            mapped = "[阶段 10] 访问令牌同步完成"
+        elif text == "注册回调已落地，跳过额外跟随":
+            return
+        elif text.startswith("Session Account ID:"):
+            return
+        elif text.startswith("Session User ID:"):
+            return
+        elif text.startswith("Session Workspace ID:"):
+            mapped = f"组织 ID: {text.split(':', 1)[1].strip()}"
+        elif text.startswith("预授权阶段重试"):
+            mapped = text
+            level = "warning"
+        elif "Cloudflare/SPA 中间页" in text:
+            mapped = "授权链路被风控中间页拦截，准备重试"
+            level = "warning"
+        elif text.startswith("发送验证码接口返回失败"):
+            mapped = "验证码发送接口返回异常，继续等待邮件验证码"
+            level = "warning"
+        elif text.startswith("未知起始状态"):
+            mapped = "授权状态未稳定，正在回退到注册入口继续"
+            level = "warning"
+        elif text == "注册流程完成":
+            mapped = "注册主流程已完成"
+        elif text.startswith("获取到 authorize URL"):
+            return
+
+        if mapped is None:
+            mapped = text
+
+        self._log(mapped, level)
+
+    def _prepare_email(self) -> bool:
+        try:
+            self._log(f"正在准备 {self.email_service.service_type.value} 邮箱账户...")
+            self.email_info = self.email_service.create_email()
+            resolved_email = self.email or ((self.email_info or {}).get("email"))
+            if not resolved_email:
+                self._log("邮箱创建失败: 返回信息不完整", "error")
+                return False
+            self.email = resolved_email
+            self._log(f"成功创建邮箱: {self.email}")
+            if self.status_callback:
+                self.status_callback("running", email=self.email)
+            return True
+        except Exception as e:
+            self._log(f"创建邮箱失败: {e}", "error")
+            return False
+
+    def run(self) -> RegistrationResult:
+        result = RegistrationResult(success=False, logs=self.logs)
+        try:
+            last_error = ""
+            for attempt in range(self.max_retries):
+                try:
+                    if attempt == 0:
+                        self._log("-" * 40)
+                        self._log("注册引擎: 流程启动")
+                        self._log("-" * 40)
+                    else:
+                        self._log(f"整流程重试 {attempt + 1}/{self.max_retries} ...")
+                        time.sleep(1)
+
+                    self.email_info = None
+                    self._log("[阶段 1] 正在开通邮箱账户...")
+                    if not self._prepare_email():
+                        result.error_message = "邮箱账户开通失败"
+                        return result
+
+                    result.email = self.email or ""
+                    pwd = self.password or generate_random_password(self.default_password_length)
+                    self.password = pwd
+                    result.password = pwd
+
+                    first_name, last_name = generate_random_name()
+                    birthdate = generate_random_birthday()
+                    self._log(f"邮箱账户: {result.email}")
+
+                    email_adapter = EmailServiceAdapter(self.email_service, self.email_info, self._log)
+                    client = ChatGPTClient(
+                        proxy=self.proxy_url,
+                        verbose=False,
+                        browser_mode=self.browser_mode,
+                    )
+                    client._log = self._log_client_message
+
+                    success, msg = client.register_complete_flow(
+                        result.email,
+                        pwd,
+                        first_name,
+                        last_name,
+                        birthdate,
+                        email_adapter,
+                    )
+                    if not success:
+                        last_error = f"注册流失败: {msg}"
+                        if attempt < self.max_retries - 1 and self._should_retry(msg):
+                            self._log(f"注册流失败，准备整流程重试: {msg}", "warning")
+                            continue
+                        result.error_message = last_error
+                        return result
+
+                    self._log("[阶段 8] 正在同步账户访问令牌...")
+                    session_ok, session_result = client.reuse_session_and_get_tokens()
+                    if session_ok:
+                        result.success = True
+                        result.access_token = session_result.get("access_token", "")
+                        result.session_token = session_result.get("session_token", "")
+                        result.account_id = (
+                            session_result.get("account_id")
+                            or session_result.get("user_id")
+                            or ("v2_acct_" + client.device_id[:8])
+                        )
+                        result.workspace_id = session_result.get("workspace_id", "")
+                        result.source = "register"
+                        result.metadata = {
+                            "email_service": self.email_service.service_type.value,
+                            "proxy_used": self.proxy_url,
+                            "registered_at": datetime.now().isoformat(),
+                            "auth_provider": session_result.get("auth_provider", ""),
+                            "expires": session_result.get("expires", ""),
+                            "user_id": session_result.get("user_id", ""),
+                            "user": session_result.get("user") or {},
+                            "account": session_result.get("account") or {},
+                            "raw_session": session_result.get("raw_session") or {},
+                            "registration_engine": "v2",
+                            "browser_mode": self.browser_mode,
+                        }
+                        self._log("-" * 40)
+                        self._log("注册: 流程执行成功", "success")
+                        self._log(f"邮箱账户: {result.email}")
+                        self._log(f"账号 ID: {result.account_id}")
+                        if result.workspace_id:
+                            self._log(f"组织 ID: {result.workspace_id}")
+                        self._log("-" * 40)
+                        return result
+
+                    last_error = f"注册成功，但复用会话获取 AccessToken 失败: {session_result}"
+                    if attempt < self.max_retries - 1:
+                        self._log(f"{last_error}，准备整流程重试", "warning")
+                        continue
+                    result.error_message = last_error
+                    return result
+                except Exception as attempt_error:
+                    last_error = str(attempt_error)
+                    if attempt < self.max_retries - 1 and self._should_retry(last_error):
+                        self._log(f"本轮出现异常，准备整流程重试: {last_error}", "warning")
+                        continue
+                    raise
+
+            result.error_message = last_error or "注册失败"
+            return result
+        except Exception as e:
+            self._log(f"V2 注册全流程执行异常: {e}", "error")
+            result.error_message = str(e)
+            return result
+
+    def save_to_database(self, result: RegistrationResult) -> bool:
+        """Persist registration result in the current project's schema."""
+        if not result.success:
+            return False
+        try:
+            settings = get_settings()
+            with get_db() as db:
+                account = crud.create_account(
+                    db,
+                    email=result.email,
+                    password=result.password,
+                    client_id=settings.openai_client_id,
+                    session_token=result.session_token,
+                    email_service=self.email_service.service_type.value,
+                    email_service_id=self.email_info.get("service_id") if self.email_info else None,
+                    account_id=result.account_id,
+                    workspace_id=result.workspace_id,
+                    access_token=result.access_token,
+                    refresh_token=result.refresh_token,
+                    id_token=result.id_token,
+                    proxy_used=self.proxy_url,
+                    extra_data=result.metadata,
+                    source=result.source,
+                )
+                self._log(f"数据持久化操作完成. 数据库 ID: {account.id}")
+                return True
+        except Exception as e:
+            self._log(f"保存到数据库失败: {e}", "error")
+            return False

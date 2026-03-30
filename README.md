@@ -1,10 +1,18 @@
+<div align="center">
+
 # CPA-Codex-Manager
+---
+<img src="https://github.com/user-attachments/assets/4106fb61-5359-4d05-b666-9aa3e6e7a0f3" width="200" />
 
 一款专为 OpenAI 账号池设计的高性能管理面板，集成全自动批量注册、CLIProxyAPI 平台账号池实时监控与智能维护系统。
 本项目核心基于 [cnlimiter/codex-manager](https://github.com/cnlimiter/codex-manager) 以及 [DestinyCycloid/codex-console](https://github.com/DestinyCycloid/codex-console) 开发。
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+
+</div>
+
+---
 
 ## 核心特性
 
@@ -27,8 +35,8 @@
   - **自定义冷却重试**：紧急防御触发后，系统将进入预设的冷却期（如 5 分钟，可配置）后重新开始检测。
   - **异常账号全自动清理**：自动移除检测过程中产生 Network Error 或 API 报错的“僵尸”账号。
 
-## 集成 CLIProxyAPI
-- **CLI Proxy API Management Center**：
+## 集成 CLIProxyAPI 管理
+- **[CLI Proxy API Management Center](https://github.com/router-for-me/CLIProxyAPI)**
 
 
 ## 技术栈
@@ -67,51 +75,51 @@ python webui.py
 
 进入系统设置页添加 CPA 服务，即可使用。
 
-### 4. Docker Hub 使用
+### 4. 桌面版运行
 
-拉取镜像：
-
-```bash
-docker pull nasqdz/CPA-Codex-Auto-Manager:latest
-```
-
-直接运行当前项目镜像：
+如果你想以桌面窗口方式运行，而不是手动打开浏览器：
 
 ```bash
-docker run -d \
-  --name cpa-codex-auto-manager \
-  -p 8000:8000 \
-  -e APP_ACCESS_PASSWORD=your_webui_password \
-  -e CPA_API_URL=http://cli-proxy-api:8317/v0 \
-  -e CPA_API_TOKEN=your_cli_proxy_api_token \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/logs:/app/logs \
-  nasqdz/CPA-Codex-Auto-Manager:latest
+pip install pywebview
+python desktop.py
 ```
 
-### 5. Docker Compose 联动 cli-proxy-api
+桌面模式会：
+- 后台自动启动本地 FastAPI 服务
+- 使用 `pywebview` 打开内嵌窗口
+- 默认仅监听 `127.0.0.1`
+- 默认使用本地 SQLite，无需配置 `.env`
 
-先准备环境变量：
+## 桌面版打包
+
+### macOS 桌面版打包
+
+请在 **macOS** 上执行：
 
 ```bash
-export APP_ACCESS_PASSWORD=your_webui_password
-export CPA_API_TOKEN=your_cli_proxy_api_token
-export CLI_PROXY_API_CONFIG_PATH=/path/to/your/config.yaml
-export CLI_PROXY_API_AUTH_DIR=/path/to/your/auth-dir
+chmod +x scripts/build_macos_dmg.sh
+./scripts/build_macos_dmg.sh
 ```
 
-然后启动：
+打包完成后产物位于：
 
-```bash
-docker compose up -d
+- `dist/CPA-Codex-Manager.app`
+- `dist/CPA-Codex-Manager.dmg`
+
+
+### Windows 桌面版打包
+
+请在 **Windows 系统** 上执行：
+
+```bat
+scripts\build_windows.bat
 ```
 
-说明：
-- `compose.yaml` 默认直接使用 `nasqdz/CPA-Codex-Auto-Manager:latest`
-- `compose.yaml` 会同时启动当前项目和 `eceasy/cli-proxy-api:latest`
-- 当前项目会通过容器内地址 `http://cli-proxy-api:8317/v0` 自动写入一个平台到“系统设置 -> 平台集成”
-- Token 不写死，必须通过环境变量 `CPA_API_TOKEN` 提供
-- 如需改平台名，可设置 `CPA_SERVICE_NAME`
+打包完成后产物通常位于：
+
+- `dist\CPA-Codex-Manager\CPA-Codex-Manager.exe`
+
+
 
 ## 页面展示
 <img width="1064" height="511" alt="截屏2026-03-25 22 39 46" src="https://github.com/user-attachments/assets/4a019320-6a86-44d6-b465-c53e74f97ac1" />
@@ -119,6 +127,16 @@ docker compose up -d
 <img width="1791" height="881" alt="截屏2026-03-25 22 39 10" src="https://github.com/user-attachments/assets/f4388533-43a1-4d27-a626-83ecc582dfcd" />
 <img width="1801" height="887" alt="截屏2026-03-25 22 34 33" src="https://github.com/user-attachments/assets/81d998df-e109-4836-9482-95d2659948d6" />
 <img width="1792" height="877" alt="截屏2026-03-25 22 39 29" src="https://github.com/user-attachments/assets/21c7d6a6-e367-410c-a180-84cfe1ef74c6" />
+
+## 更新日志
+
+### v1.1.0
+
+- 注册主流程升级为新的状态机会话链路，整体兼容性与稳定性提升。
+- 批量注册启动流程优化，降低大批量任务在启动阶段的阻塞时间。
+- 批量监控逻辑优化。
+- 注册日志阶段划分重新整理，阶段编号和提示文案更加清晰统一。
+- CPA 上传链路优化，支持更直接的投递流程与更清晰的上传日志。
 
 ## 巡检与补货配置建议
 
@@ -137,8 +155,8 @@ docker compose up -d
 ## Star History
 
 <p align="center">
-  <a href="https://www.star-history.com/#maoleio/CAP-Codex-Manager&Date">
-    <img src="https://api.star-history.com/svg?repos=maoleio/CAP-Codex-Manager&type=Date" alt="Star History Chart" />
+  <a href="https://www.star-history.com/#maoleio/CPA-Codex-Manager&Date">
+    <img src="https://api.star-history.com/svg?repos=maoleio/CPA-Codex-Manager&type=Date" alt="Star History Chart" />
   </a>
 </p>
 

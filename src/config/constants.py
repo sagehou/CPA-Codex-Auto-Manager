@@ -32,7 +32,6 @@ class TaskStatus(str, Enum):
 class EmailServiceType(str, Enum):
     """邮箱服务类型"""
     TEMPMAIL = "tempmail"
-    OUTLOOK = "outlook"
     CLOUD_MAIL = "cloud_mail"
 
 
@@ -100,13 +99,6 @@ EMAIL_SERVICE_DEFAULTS = {
         "base_url": "https://api.tempmail.lol/v2",
         "timeout": 30,
         "max_retries": 3,
-    },
-    "outlook": {
-        "imap_server": "outlook.office365.com",
-        "imap_port": 993,
-        "smtp_server": "smtp.office365.com",
-        "smtp_port": 587,
-        "timeout": 30,
     },
     "cloud_mail": {
         "base_url": "",
@@ -338,37 +330,3 @@ TIME_CONSTANTS = {
     "DAY": 86400,
     "WEEK": 604800,
 }
-
-
-# ============================================================================
-# Microsoft/Outlook 相关常量
-# ============================================================================
-
-# Microsoft OAuth2 Token 端点
-MICROSOFT_TOKEN_ENDPOINTS = {
-    # 旧版 IMAP 使用的端点
-    "LIVE": "https://login.live.com/oauth20_token.srf",
-    # 新版 IMAP 使用的端点（需要特定 scope）
-    "CONSUMERS": "https://login.microsoftonline.com/consumers/oauth2/v2.0/token",
-    # Graph API 使用的端点
-    "COMMON": "https://login.microsoftonline.com/common/oauth2/v2.0/token",
-}
-
-# IMAP 服务器配置
-OUTLOOK_IMAP_SERVERS = {
-    "OLD": "outlook.office365.com",  # 旧版 IMAP
-    "NEW": "outlook.live.com",       # 新版 IMAP
-}
-
-# Microsoft OAuth2 Scopes
-MICROSOFT_SCOPES = {
-    # 旧版 IMAP 不需要特定 scope
-    "IMAP_OLD": "",
-    # 新版 IMAP 需要的 scope
-    "IMAP_NEW": "https://outlook.office.com/IMAP.AccessAsUser.All offline_access",
-    # Graph API 需要的 scope
-    "GRAPH_API": "https://graph.microsoft.com/.default",
-}
-
-# Outlook 提供者默认优先级
-OUTLOOK_PROVIDER_PRIORITY = ["imap_new", "imap_old", "graph_api"]

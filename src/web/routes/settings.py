@@ -49,6 +49,7 @@ class RegistrationSettings(BaseModel):
     default_password_length: int = 12
     sleep_min: int = 5
     sleep_max: int = 30
+    check_ip_location: bool = True
 
 
 class WebUISettings(BaseModel):
@@ -93,6 +94,7 @@ async def get_all_settings():
             "default_password_length": settings.registration_default_password_length,
             "sleep_min": settings.registration_sleep_min,
             "sleep_max": settings.registration_sleep_max,
+            "check_ip_location": settings.registration_check_ip_location,
         },
         "webui": {
             "host": settings.webui_host,
@@ -208,6 +210,7 @@ async def get_registration_settings():
         "default_password_length": settings.registration_default_password_length,
         "sleep_min": settings.registration_sleep_min,
         "sleep_max": settings.registration_sleep_max,
+        "check_ip_location": settings.registration_check_ip_location,
     }
 
 
@@ -220,6 +223,7 @@ async def update_registration_settings(request: RegistrationSettings):
         registration_default_password_length=request.default_password_length,
         registration_sleep_min=request.sleep_min,
         registration_sleep_max=request.sleep_max,
+        registration_check_ip_location=request.check_ip_location,
     )
 
     return {"success": True, "message": "注册设置已更新"}
@@ -689,41 +693,6 @@ async def disable_proxy(proxy_id: int):
         if not proxy:
             raise HTTPException(status_code=404, detail="代理不存在")
         return {"success": True, "message": "代理已禁用"}
-
-
-# ============== Outlook 设置 ==============
-
-class OutlookSettings(BaseModel):
-    """Outlook 设置"""
-    default_client_id: Optional[str] = None
-
-
-@router.get("/outlook")
-async def get_outlook_settings():
-    """获取 Outlook 设置"""
-    settings = get_settings()
-
-    return {
-        "default_client_id": settings.outlook_default_client_id,
-        "provider_priority": settings.outlook_provider_priority,
-        "health_failure_threshold": settings.outlook_health_failure_threshold,
-        "health_disable_duration": settings.outlook_health_disable_duration,
-    }
-
-
-@router.post("/outlook")
-async def update_outlook_settings(request: OutlookSettings):
-    """更新 Outlook 设置"""
-    update_dict = {}
-
-    if request.default_client_id is not None:
-        update_dict["outlook_default_client_id"] = request.default_client_id
-
-    if update_dict:
-        update_settings(**update_dict)
-
-    return {"success": True, "message": "Outlook 设置已更新"}
-
 
 # ============== Team Manager 设置 ==============
 

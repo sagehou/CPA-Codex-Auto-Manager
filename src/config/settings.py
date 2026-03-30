@@ -248,11 +248,17 @@ SETTING_DEFINITIONS: Dict[str, SettingDefinition] = {
         category=SettingCategory.REGISTRATION,
         description="注册间隔最大值（秒）"
     ),
+    "registration_check_ip_location": SettingDefinition(
+        db_key="registration.check_ip_location",
+        default_value=True,
+        category=SettingCategory.REGISTRATION,
+        description="注册前是否检查 IP 地理位置"
+    ),
 
     # 邮箱服务配置
     "email_service_priority": SettingDefinition(
         db_key="email.service_priority",
-        default_value={"tempmail": 0, "outlook": 1, "moe_mail": 2},
+        default_value={"tempmail": 0, "moe_mail": 1},
         category=SettingCategory.EMAIL,
         description="邮箱服务优先级"
     ),
@@ -357,31 +363,6 @@ SETTING_DEFINITIONS: Dict[str, SettingDefinition] = {
         description="验证码轮询间隔（秒）"
     ),
 
-    # Outlook 配置
-    "outlook_provider_priority": SettingDefinition(
-        db_key="outlook.provider_priority",
-        default_value=["imap_old", "imap_new", "graph_api"],
-        category=SettingCategory.EMAIL,
-        description="Outlook 提供者优先级"
-    ),
-    "outlook_health_failure_threshold": SettingDefinition(
-        db_key="outlook.health_failure_threshold",
-        default_value=5,
-        category=SettingCategory.EMAIL,
-        description="Outlook 提供者连续失败次数阈值"
-    ),
-    "outlook_health_disable_duration": SettingDefinition(
-        db_key="outlook.health_disable_duration",
-        default_value=60,
-        category=SettingCategory.EMAIL,
-        description="Outlook 提供者禁用时长（秒）"
-    ),
-    "outlook_default_client_id": SettingDefinition(
-        db_key="outlook.default_client_id",
-        default_value="24d9a0ed-8787-4584-883c-2fd79308940a",
-        category=SettingCategory.EMAIL,
-        description="Outlook OAuth 默认 Client ID"
-    ),
 }
 
 # 属性名到数据库键名的映射（用于向后兼容）
@@ -400,6 +381,7 @@ SETTING_TYPES: Dict[str, Type] = {
     "registration_default_password_length": int,
     "registration_sleep_min": int,
     "registration_sleep_max": int,
+    "registration_check_ip_location": bool,
     "email_service_priority": dict,
     "tempmail_timeout": int,
     "tempmail_max_retries": int,
@@ -407,9 +389,6 @@ SETTING_TYPES: Dict[str, Type] = {
     "cpa_enabled": bool,
     "email_code_timeout": int,
     "email_code_poll_interval": int,
-    "outlook_provider_priority": list,
-    "outlook_health_failure_threshold": int,
-    "outlook_health_disable_duration": int,
 }
 
 # 需要作为 SecretStr 处理的字段
@@ -663,9 +642,10 @@ class Settings(BaseModel):
     registration_default_password_length: int = 12
     registration_sleep_min: int = 5
     registration_sleep_max: int = 30
+    registration_check_ip_location: bool = True
 
     # 邮箱服务配置
-    email_service_priority: Dict[str, int] = {"tempmail": 0, "outlook": 1, "moe_mail": 2}
+    email_service_priority: Dict[str, int] = {"tempmail": 0, "moe_mail": 1}
 
     # Tempmail.lol 配置
     tempmail_base_url: str = "https://api.tempmail.lol/v2"
@@ -692,13 +672,6 @@ class Settings(BaseModel):
     # 验证码配置
     email_code_timeout: int = 30
     email_code_poll_interval: int = 3
-
-    # Outlook 配置
-    outlook_provider_priority: List[str] = ["imap_old", "imap_new", "graph_api"]
-    outlook_health_failure_threshold: int = 5
-    outlook_health_disable_duration: int = 60
-    outlook_default_client_id: str = "24d9a0ed-8787-4584-883c-2fd79308940a"
-
 
 # 全局配置实例
 _settings: Optional[Settings] = None

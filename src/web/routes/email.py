@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from ...database import crud
 from ...database.session import get_db
-from ...database.models import EmailService as EmailServiceModel
+from ...database.models import EmailService as EmailServiceModel, RegistrationTask
 from ...services import EmailServiceFactory, EmailServiceType
 
 logger = logging.getLogger(__name__)
@@ -65,22 +65,6 @@ class ServiceTestResult(BaseModel):
     details: Optional[Dict[str, Any]] = None
 
 
-class OutlookBatchImportRequest(BaseModel):
-    """Outlook 批量导入请求"""
-    data: str  # 多行数据，每行格式: 邮箱----密码 或 邮箱----密码----client_id----refresh_token
-    enabled: bool = True
-    priority: int = 0
-
-
-class OutlookBatchImportResponse(BaseModel):
-    """Outlook 批量导入响应"""
-    total: int
-    success: int
-    failed: int
-    accounts: List[Dict[str, Any]]
-    errors: List[str]
-
-
 # ============== Helper Functions ==============
 
 # 敏感字段列表，返回响应时需要过滤
@@ -99,10 +83,6 @@ def filter_sensitive_config(config: Dict[str, Any]) -> Dict[str, Any]:
         else:
             filtered[key] = value
 
-    # 为 Outlook 计算是否有 OAuth
-    if config.get('client_id') and config.get('refresh_token'):
-        filtered['has_oauth'] = True
-
     return filtered
 
 
@@ -119,6 +99,14 @@ def service_to_response(service: EmailServiceModel) -> EmailServiceResponse:
         created_at=service.created_at.isoformat() if service.created_at else None,
         updated_at=service.updated_at.isoformat() if service.updated_at else None,
     )
+
+
+def _delete_service_with_dependencies(db, service: EmailServiceModel) -> None:
+    """删除邮箱服务及其关联的注册任务，避免外键约束报错。"""
+    db.query(RegistrationTask).filter(
+        RegistrationTask.email_service_id == service.id
+    ).delete(synchronize_session=False)
+    db.delete(service)
 
 
 # ============== API Endpoints ==============
@@ -141,7 +129,6 @@ async def get_email_services_stats():
         ).scalar()
 
         stats = {
-            'outlook_count': 0,
             'custom_count': 0,
             'temp_mail_count': 0,
             'duck_mail_count': 0,
@@ -152,9 +139,7 @@ async def get_email_services_stats():
         }
 
         for service_type, count in type_stats:
-            if service_type == 'outlook':
-                stats['outlook_count'] = count
-            elif service_type == 'moe_mail':
+            if service_type == 'moe_mail':
                 stats['custom_count'] = count
             elif service_type == 'temp_mail':
                 stats['temp_mail_count'] = count
@@ -180,17 +165,6 @@ async def get_service_types():
                 "config_fields": [
                     {"name": "base_url", "label": "API 地址", "default": "https://api.tempmail.lol/v2", "required": False},
                     {"name": "timeout", "label": "超时时间", "default": 30, "required": False},
-                ]
-            },
-            {
-                "value": "outlook",
-                "label": "Outlook",
-                "description": "Outlook 邮箱，需要配置账户信息",
-                "config_fields": [
-                    {"name": "email", "label": "邮箱地址", "required": True},
-                    {"name": "password", "label": "密码", "required": True},
-                    {"name": "client_id", "label": "OAuth Client ID", "required": False},
-                    {"name": "refresh_token", "label": "OAuth Refresh Token", "required": False},
                 ]
             },
             {
@@ -373,11 +347,15 @@ async def delete_email_service(service_id: int):
         service = db.query(EmailServiceModel).filter(EmailServiceModel.id == service_id).first()
         if not service:
             raise HTTPException(status_code=404, detail="服务不存在")
-
-        db.delete(service)
-        db.commit()
-
-        return {"success": True, "message": f"服务 {service.name} 已删除"}
+        service_name = service.name
+        try:
+            _delete_service_with_dependencies(db, service)
+            db.commit()
+            return {"success": True, "message": f"服务 {service_name} 已删除"}
+        except Exception as e:
+            db.rollback()
+            logger.error(f"删除邮箱服务失败: {service_id}, 错误: {e}")
+            raise HTTPException(status_code=500, detail=f"删除服务失败: {str(e)}")
 
 
 @router.post("/{service_id}/test", response_model=ServiceTestResult)
@@ -454,127 +432,6 @@ async def reorder_services(service_ids: List[int]):
         db.commit()
 
         return {"success": True, "message": "优先级已更新"}
-
-
-@router.post("/outlook/batch-import", response_model=OutlookBatchImportResponse)
-async def batch_import_outlook(request: OutlookBatchImportRequest):
-    """
-    批量导入 Outlook 邮箱账户
-
-    支持两种格式：
-    - 格式一（密码认证）：邮箱----密码
-    - 格式二（XOAUTH2 认证）：邮箱----密码----client_id----refresh_token
-
-    每行一个账户，使用四个连字符（----）分隔字段
-    """
-    lines = request.data.strip().split("\n")
-    total = len(lines)
-    success = 0
-    failed = 0
-    accounts = []
-    errors = []
-
-    with get_db() as db:
-        for i, line in enumerate(lines):
-            line = line.strip()
-
-            # 跳过空行和注释
-            if not line or line.startswith("#"):
-                continue
-
-            parts = line.split("----")
-
-            # 验证格式
-            if len(parts) < 2:
-                failed += 1
-                errors.append(f"行 {i+1}: 格式错误，至少需要邮箱和密码")
-                continue
-
-            email = parts[0].strip()
-            password = parts[1].strip()
-
-            # 验证邮箱格式
-            if "@" not in email:
-                failed += 1
-                errors.append(f"行 {i+1}: 无效的邮箱地址: {email}")
-                continue
-
-            # 检查是否已存在
-            existing = db.query(EmailServiceModel).filter(
-                EmailServiceModel.service_type == "outlook",
-                EmailServiceModel.name == email
-            ).first()
-
-            if existing:
-                failed += 1
-                errors.append(f"行 {i+1}: 邮箱已存在: {email}")
-                continue
-
-            # 构建配置
-            config = {
-                "email": email,
-                "password": password
-            }
-
-            # 检查是否有 OAuth 信息（格式二）
-            if len(parts) >= 4:
-                client_id = parts[2].strip()
-                refresh_token = parts[3].strip()
-                if client_id and refresh_token:
-                    config["client_id"] = client_id
-                    config["refresh_token"] = refresh_token
-
-            # 创建服务记录
-            try:
-                service = EmailServiceModel(
-                    service_type="outlook",
-                    name=email,
-                    config=config,
-                    enabled=request.enabled,
-                    priority=request.priority
-                )
-                db.add(service)
-                db.commit()
-                db.refresh(service)
-
-                accounts.append({
-                    "id": service.id,
-                    "email": email,
-                    "has_oauth": bool(config.get("client_id")),
-                    "name": email
-                })
-                success += 1
-
-            except Exception as e:
-                failed += 1
-                errors.append(f"行 {i+1}: 创建失败: {str(e)}")
-                db.rollback()
-
-    return OutlookBatchImportResponse(
-        total=total,
-        success=success,
-        failed=failed,
-        accounts=accounts,
-        errors=errors
-    )
-
-
-@router.delete("/outlook/batch")
-async def batch_delete_outlook(service_ids: List[int]):
-    """批量删除 Outlook 邮箱服务"""
-    deleted = 0
-    with get_db() as db:
-        for service_id in service_ids:
-            service = db.query(EmailServiceModel).filter(
-                EmailServiceModel.id == service_id,
-                EmailServiceModel.service_type == "outlook"
-            ).first()
-            if service:
-                db.delete(service)
-                deleted += 1
-        db.commit()
-
-    return {"success": True, "deleted": deleted, "message": f"已删除 {deleted} 个服务"}
 
 
 # ============== 临时邮箱测试 ==============

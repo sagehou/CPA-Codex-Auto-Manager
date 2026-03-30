@@ -1046,7 +1046,6 @@ def _build_inbox_config(db, service_type, email: str) -> dict:
         EST.DUCK_MAIL: "duck_mail",
         EST.FREEMAIL: "freemail",
         EST.IMAP_MAIL: "imap_mail",
-        EST.OUTLOOK: "outlook",
     }
     db_type = type_map.get(service_type)
     if not db_type:
@@ -1056,12 +1055,7 @@ def _build_inbox_config(db, service_type, email: str) -> dict:
         EmailServiceModel.service_type == db_type,
         EmailServiceModel.enabled == True
     )
-    if service_type == EST.OUTLOOK:
-        # 按 config.email 匹配账号 email
-        services = query.all()
-        svc = next((s for s in services if (s.config or {}).get("email") == email), None)
-    else:
-        svc = query.order_by(EmailServiceModel.priority.asc()).first()
+    svc = query.order_by(EmailServiceModel.priority.asc()).first()
 
     if not svc:
         return None
