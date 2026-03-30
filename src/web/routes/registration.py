@@ -1271,30 +1271,31 @@ async def get_available_email_services():
         result["outlook"]["available"] = len(outlook_services) > 0
 
         # 获取 Cloud Mail 服务
-        cloud_mail_services = db.query(EmailServiceModel).filter(
-            EmailServiceModel.service_type == "cloud_mail",
+        custom_service_types = ["temp_mail", "cloud_mail"]
+        custom_services = db.query(EmailServiceModel).filter(
+            EmailServiceModel.service_type.in_(custom_service_types),
             EmailServiceModel.enabled == True
         ).order_by(EmailServiceModel.priority.asc()).all()
 
-        for service in cloud_mail_services:
+        for service in custom_services:
             config = service.config or {}
-            domain = config.get("domain")
-            # 如果是列表，显示第一个域名
+            domain = config.get("domain") or config.get("default_domain")
             if isinstance(domain, list) and domain:
                 domain_display = domain[0]
             else:
                 domain_display = domain
-            
-            result["cloud_mail"]["services"].append({
+
+            result[service.service_type]["services"].append({
                 "id": service.id,
                 "name": service.name,
-                "type": "cloud_mail",
+                "type": service.service_type,
                 "domain": domain_display,
                 "priority": service.priority
             })
 
-        result["cloud_mail"]["count"] = len(cloud_mail_services)
-        result["cloud_mail"]["available"] = len(cloud_mail_services) > 0
+        for service_type in custom_service_types:
+            result[service_type]["count"] = len(result[service_type]["services"])
+            result[service_type]["available"] = result[service_type]["count"] > 0
 
     return result
 

@@ -329,7 +329,8 @@ function openEmailServiceModal() {
 
     // 4. 其他服务
     const otherServices = [
-        { key: 'cloud_mail', name: 'CloudMail', desc: 'Cloudflare Email 路由', icon: '🌫️' }
+        { key: 'temp_mail', name: 'Temp-Mail', desc: 'Cloudflare Worker temp mailbox', icon: 'TM' },
+        { key: 'cloud_mail', name: 'CloudMail', desc: 'Cloudflare Email routing', icon: 'CM' }
     ];
 
     otherServices.forEach(os => {
