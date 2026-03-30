@@ -32,6 +32,7 @@ class TaskStatus(str, Enum):
 class EmailServiceType(str, Enum):
     """邮箱服务类型"""
     TEMPMAIL = "tempmail"
+    TEMP_MAIL = "temp_mail"
     OUTLOOK = "outlook"
     CLOUD_MAIL = "cloud_mail"
 
@@ -98,6 +99,15 @@ CUSTOM_DOMAIN_API_ENDPOINTS = {
 EMAIL_SERVICE_DEFAULTS = {
     "tempmail": {
         "base_url": "https://api.tempmail.lol/v2",
+        "timeout": 30,
+        "max_retries": 3,
+    },
+    "temp_mail": {
+        "base_url": "",
+        "admin_password": "",
+        "custom_auth": "",
+        "domain": [],
+        "enable_prefix": True,
         "timeout": 30,
         "max_retries": 3,
     },

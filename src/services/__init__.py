@@ -11,11 +11,13 @@ from .base import (
     EmailServiceType
 )
 from .tempmail import TempmailService
+from .temp_mail import TempMailService
 from .outlook import OutlookService
 from .cloud_mail import CloudMailService
 
 # 注册核心服务
 EmailServiceFactory.register(EmailServiceType.TEMPMAIL, TempmailService)
+EmailServiceFactory.register(EmailServiceType.TEMP_MAIL, TempMailService)
 EmailServiceFactory.register(EmailServiceType.OUTLOOK, OutlookService)
 EmailServiceFactory.register(EmailServiceType.CLOUD_MAIL, CloudMailService)
 
@@ -45,6 +47,7 @@ __all__ = [
     'EmailServiceType',
     # 服务类
     'TempmailService',
+    'TempMailService',
     'OutlookService',
     'CloudMailService',
     # Outlook 模块

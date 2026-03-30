@@ -94,24 +94,50 @@ document.addEventListener('DOMContentLoaded', () => {
     initEventListeners();
 });
 
+function bindClick(element, handler) {
+    if (element) {
+        element.addEventListener('click', handler);
+    }
+}
+
+function bindChange(element, handler) {
+    if (element) {
+        element.addEventListener('change', handler);
+    }
+}
+
+function bindSubmit(element, handler) {
+    if (element) {
+        element.addEventListener('submit', handler);
+    }
+}
+
+function toggleSection(section, visible) {
+    if (!section) return;
+    section.style.display = visible ? '' : 'none';
+    section.querySelectorAll('input, select, textarea, button').forEach(field => {
+        field.disabled = !visible;
+    });
+}
+
 // 事件监听
 function initEventListeners() {
     // Outlook 导入展开/收起
-    elements.toggleOutlookImport.addEventListener('click', () => {
+    bindClick(elements.toggleOutlookImport, () => {
         const isHidden = elements.outlookImportBody.style.display === 'none';
         elements.outlookImportBody.style.display = isHidden ? 'block' : 'none';
         elements.toggleOutlookImport.textContent = isHidden ? '收起' : '展开';
     });
 
     // Outlook 导入
-    elements.outlookImportBtn.addEventListener('click', handleOutlookImport);
-    elements.clearImportBtn.addEventListener('click', () => {
+    bindClick(elements.outlookImportBtn, handleOutlookImport);
+    bindClick(elements.clearImportBtn, () => {
         elements.outlookImportData.value = '';
         elements.importResult.style.display = 'none';
     });
 
     // Outlook 全选
-    elements.selectAllOutlook.addEventListener('change', (e) => {
+    bindChange(elements.selectAllOutlook, (e) => {
         const checkboxes = elements.outlookTable.querySelectorAll('input[type="checkbox"][data-id]');
         checkboxes.forEach(cb => {
             cb.checked = e.target.checked;
@@ -123,10 +149,10 @@ function initEventListeners() {
     });
 
     // Outlook 批量删除
-    elements.batchDeleteOutlookBtn.addEventListener('click', handleBatchDeleteOutlook);
+    bindClick(elements.batchDeleteOutlookBtn, handleBatchDeleteOutlook);
 
     // 自定义域名全选
-    elements.selectAllCustom.addEventListener('change', (e) => {
+    bindChange(elements.selectAllCustom, (e) => {
         const checkboxes = elements.customTable.querySelectorAll('input[type="checkbox"][data-id]');
         checkboxes.forEach(cb => {
             cb.checked = e.target.checked;
@@ -137,31 +163,31 @@ function initEventListeners() {
     });
 
     // 添加自定义域名
-    elements.addCustomBtn.addEventListener('click', () => {
+    bindClick(elements.addCustomBtn, () => {
         elements.addCustomForm.reset();
         switchAddSubType('moemail');
         elements.addCustomModal.classList.add('active');
     });
-    elements.closeCustomModal.addEventListener('click', () => elements.addCustomModal.classList.remove('active'));
-    elements.cancelAddCustom.addEventListener('click', () => elements.addCustomModal.classList.remove('active'));
-    elements.addCustomForm.addEventListener('submit', handleAddCustom);
+    bindClick(elements.closeCustomModal, () => elements.addCustomModal.classList.remove('active'));
+    bindClick(elements.cancelAddCustom, () => elements.addCustomModal.classList.remove('active'));
+    bindSubmit(elements.addCustomForm, handleAddCustom);
 
     // 类型切换（添加表单）
-    elements.customSubType.addEventListener('change', (e) => switchAddSubType(e.target.value));
+    bindChange(elements.customSubType, (e) => switchAddSubType(e.target.value));
 
     // 编辑自定义域名
-    elements.closeEditCustomModal.addEventListener('click', () => elements.editCustomModal.classList.remove('active'));
-    elements.cancelEditCustom.addEventListener('click', () => elements.editCustomModal.classList.remove('active'));
-    elements.editCustomForm.addEventListener('submit', handleEditCustom);
+    bindClick(elements.closeEditCustomModal, () => elements.editCustomModal.classList.remove('active'));
+    bindClick(elements.cancelEditCustom, () => elements.editCustomModal.classList.remove('active'));
+    bindSubmit(elements.editCustomForm, handleEditCustom);
 
     // 编辑 Outlook
-    elements.closeEditOutlookModal.addEventListener('click', () => elements.editOutlookModal.classList.remove('active'));
-    elements.cancelEditOutlook.addEventListener('click', () => elements.editOutlookModal.classList.remove('active'));
-    elements.editOutlookForm.addEventListener('submit', handleEditOutlook);
+    bindClick(elements.closeEditOutlookModal, () => elements.editOutlookModal.classList.remove('active'));
+    bindClick(elements.cancelEditOutlook, () => elements.editOutlookModal.classList.remove('active'));
+    bindSubmit(elements.editOutlookForm, handleEditOutlook);
 
     // 临时邮箱配置
-    elements.tempmailForm.addEventListener('submit', handleSaveTempmail);
-    elements.testTempmailBtn.addEventListener('click', handleTestTempmail);
+    bindSubmit(elements.tempmailForm, handleSaveTempmail);
+    bindClick(elements.testTempmailBtn, handleTestTempmail);
 
     // 点击其他地方关闭更多菜单
     document.addEventListener('click', () => {
@@ -184,23 +210,23 @@ function closeEmailMoreMenu(el) {
 // 切换添加表单子类型
 function switchAddSubType(subType) {
     elements.customSubType.value = subType;
-    elements.addMoemailFields.style.display = subType === 'moemail' ? '' : 'none';
-    elements.addTempmailFields.style.display = subType === 'tempmail' ? '' : 'none';
-    elements.addDuckmailFields.style.display = subType === 'duckmail' ? '' : 'none';
-    elements.addFreemailFields.style.display = subType === 'freemail' ? '' : 'none';
-    elements.addCloudmailFields.style.display = subType === 'cloudmail' ? '' : 'none';
-    elements.addImapFields.style.display = subType === 'imap' ? '' : 'none';
+    toggleSection(elements.addMoemailFields, subType === 'moemail');
+    toggleSection(elements.addTempmailFields, subType === 'tempmail');
+    toggleSection(elements.addDuckmailFields, subType === 'duckmail');
+    toggleSection(elements.addFreemailFields, subType === 'freemail');
+    toggleSection(elements.addCloudmailFields, subType === 'cloudmail');
+    toggleSection(elements.addImapFields, subType === 'imap');
 }
 
 // 切换编辑表单子类型显示
 function switchEditSubType(subType) {
     elements.editCustomSubTypeHidden.value = subType;
-    elements.editMoemailFields.style.display = subType === 'moemail' ? '' : 'none';
-    elements.editTempmailFields.style.display = subType === 'tempmail' ? '' : 'none';
-    elements.editDuckmailFields.style.display = subType === 'duckmail' ? '' : 'none';
-    elements.editFreemailFields.style.display = subType === 'freemail' ? '' : 'none';
-    elements.editCloudmailFields.style.display = subType === 'cloudmail' ? '' : 'none';
-    elements.editImapFields.style.display = subType === 'imap' ? '' : 'none';
+    toggleSection(elements.editMoemailFields, subType === 'moemail');
+    toggleSection(elements.editTempmailFields, subType === 'tempmail');
+    toggleSection(elements.editDuckmailFields, subType === 'duckmail');
+    toggleSection(elements.editFreemailFields, subType === 'freemail');
+    toggleSection(elements.editCloudmailFields, subType === 'cloudmail');
+    toggleSection(elements.editImapFields, subType === 'imap');
     elements.editCustomTypeBadge.textContent = CUSTOM_SUBTYPE_LABELS[subType] || CUSTOM_SUBTYPE_LABELS.moemail;
 }
 
@@ -453,10 +479,16 @@ async function handleAddCustom(e) {
         };
     } else if (subType === 'tempmail') {
         serviceType = 'temp_mail';
+        const domainInput = formData.get('tm_domain');
+        let domain = domainInput;
+        if (domainInput && domainInput.includes(',')) {
+            domain = domainInput.split(',').map(d => d.trim()).filter(d => d);
+        }
         config = {
             base_url: formData.get('tm_base_url'),
             admin_password: formData.get('tm_admin_password'),
-            domain: formData.get('tm_domain'),
+            custom_auth: formData.get('tm_custom_auth'),
+            domain: domain,
             enable_prefix: true
         };
     } else if (subType === 'duckmail') {
@@ -662,7 +694,9 @@ async function editCustomService(id, subType) {
             document.getElementById('edit-tm-base-url').value = service.config?.base_url || '';
             document.getElementById('edit-tm-admin-password').value = '';
             document.getElementById('edit-tm-admin-password').placeholder = service.config?.admin_password ? '已设置，留空保持不变' : '请输入 Admin 密码';
-            document.getElementById('edit-tm-domain').value = service.config?.domain || '';
+            document.getElementById('edit-tm-custom-auth').value = '';
+            document.getElementById('edit-tm-custom-auth').placeholder = service.config?.custom_auth ? '已设置，留空保持不变' : '可选';
+            document.getElementById('edit-tm-domain').value = Array.isArray(service.config?.domain) ? service.config.domain.join(', ') : (service.config?.domain || '');
         } else if (resolvedSubType === 'duckmail') {
             document.getElementById('edit-dm-base-url').value = service.config?.base_url || '';
             document.getElementById('edit-dm-api-key').value = '';
@@ -714,13 +748,20 @@ async function handleEditCustom(e) {
         const apiKey = formData.get('api_key');
         if (apiKey && apiKey.trim()) config.api_key = apiKey.trim();
     } else if (subType === 'tempmail') {
+        const domainInput = formData.get('tm_domain');
+        let domain = domainInput;
+        if (domainInput && domainInput.includes(',')) {
+            domain = domainInput.split(',').map(d => d.trim()).filter(d => d);
+        }
         config = {
             base_url: formData.get('tm_base_url'),
-            domain: formData.get('tm_domain'),
+            domain: domain,
             enable_prefix: true
         };
         const pwd = formData.get('tm_admin_password');
         if (pwd && pwd.trim()) config.admin_password = pwd.trim();
+        const customAuth = formData.get('tm_custom_auth');
+        if (customAuth && customAuth.trim()) config.custom_auth = customAuth.trim();
     } else if (subType === 'duckmail') {
         config = {
             base_url: formData.get('dm_base_url'),
