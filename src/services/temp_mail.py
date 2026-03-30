@@ -130,6 +130,10 @@ class TempMailService(BaseEmailService):
             value = response.get(key)
             if isinstance(value, list):
                 return [item for item in value if isinstance(item, dict)]
+            if isinstance(value, dict):
+                nested = TempMailService._extract_mails(value)
+                if nested:
+                    return nested
         return []
 
     @staticmethod
@@ -182,33 +186,20 @@ class TempMailService(BaseEmailService):
     def _fetch_user_mails(self, jwt: str) -> List[Dict[str, Any]]:
         if not jwt:
             return []
-
-        attempts = [
-            (
+        try:
+            response = self._make_request(
+                "GET",
                 "/api/mails",
-                {
+                headers={
                     "Authorization": f"Bearer {jwt}",
                     "Accept": "application/json",
                 },
-            ),
-            (
-                "/user_api/mails",
-                {
-                    "x-user-token": jwt,
-                    "Accept": "application/json",
-                },
-            ),
-        ]
-
-        for path, headers in attempts:
-            try:
-                response = self._make_request("GET", path, headers=headers, params={"limit": 50, "offset": 0})
-                mails = self._extract_mails(response)
-                if mails:
-                    return mails
-            except Exception as exc:
-                logger.debug("TempMail user mailbox fetch failed for %s: %s", path, exc)
-        return []
+                params={"limit": 50, "offset": 0},
+            )
+            return self._extract_mails(response)
+        except Exception as exc:
+            logger.debug("TempMail address mailbox fetch failed via /api/mails: %s", exc)
+            return []
 
     def _fetch_admin_mails(self, email: str) -> List[Dict[str, Any]]:
         params_variants = [
