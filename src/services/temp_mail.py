@@ -8,6 +8,9 @@ import random
 import re
 import string
 import time
+from email import policy
+from email.header import decode_header
+from email.parser import Parser
 from typing import Any, Dict, List, Optional
 
 from .base import BaseEmailService, EmailServiceError, EmailServiceType
@@ -145,12 +148,94 @@ class TempMailService(BaseEmailService):
         return json.dumps(mail, ensure_ascii=False, sort_keys=True)
 
     @staticmethod
+    def _decode_header_value(value: Any) -> str:
+        text = str(value or "")
+        if not text:
+            return ""
+
+        decoded_parts: List[str] = []
+        for part, charset in decode_header(text):
+            if isinstance(part, bytes):
+                try:
+                    decoded_parts.append(part.decode(charset or "utf-8", errors="replace"))
+                except Exception:
+                    decoded_parts.append(part.decode("utf-8", errors="replace"))
+            else:
+                decoded_parts.append(str(part))
+        return "".join(decoded_parts).strip()
+
+    @classmethod
+    def _parse_raw_message(cls, raw_message: str) -> Dict[str, str]:
+        if not raw_message:
+            return {"sender": "", "subject": "", "body": "", "raw": ""}
+
+        try:
+            message = Parser(policy=policy.default).parsestr(raw_message)
+        except Exception:
+            return {"sender": "", "subject": "", "body": "", "raw": raw_message}
+
+        sender = cls._decode_header_value(message.get("From"))
+        subject = cls._decode_header_value(message.get("Subject"))
+        text_parts: List[str] = []
+        html_parts: List[str] = []
+
+        for part in message.walk():
+            if part.is_multipart():
+                continue
+
+            content_type = part.get_content_type()
+            try:
+                payload = part.get_content()
+            except Exception:
+                try:
+                    payload_bytes = part.get_payload(decode=True) or b""
+                    payload = payload_bytes.decode(part.get_content_charset() or "utf-8", errors="replace")
+                except Exception:
+                    payload = ""
+
+            if payload is None:
+                continue
+
+            content = str(payload).strip()
+            if not content:
+                continue
+
+            if content_type == "text/plain":
+                text_parts.append(content)
+            elif content_type == "text/html":
+                html_parts.append(content)
+
+        body = "\n".join(text_parts).strip()
+        raw = raw_message
+        if not body and html_parts:
+            body = re.sub(r"<[^>]+>", " ", "\n".join(html_parts))
+
+        return {
+            "sender": sender,
+            "subject": subject,
+            "body": body.strip(),
+            "raw": raw,
+        }
+
+    @staticmethod
     def _extract_mail_fields(mail: Dict[str, Any]) -> Dict[str, str]:
-        sender = str(mail.get("source") or mail.get("from") or "").strip()
-        subject = str(mail.get("subject") or mail.get("title") or "").strip()
-        body = str(mail.get("text") or mail.get("body") or mail.get("content") or mail.get("html") or "").strip()
-        raw = str(mail.get("raw") or "").strip()
-        if raw and not body:
+        raw = str(mail.get("raw") or mail.get("source") or "").strip()
+        parsed = TempMailService._parse_raw_message(raw)
+
+        sender = (
+            parsed["sender"]
+            or str(mail.get("from") or mail.get("source") or mail.get("mail_from") or "").strip()
+        )
+        subject = (
+            parsed["subject"]
+            or str(mail.get("subject") or mail.get("title") or mail.get("mail_subject") or "").strip()
+        )
+        body = (
+            parsed["body"]
+            or str(mail.get("text") or mail.get("body") or mail.get("content") or mail.get("html") or mail.get("mail_text") or "").strip()
+        )
+
+        if not body and raw:
             body = re.sub(r"<[^>]+>", " ", raw)
         return {"sender": sender, "subject": subject, "body": body, "raw": raw}
 
@@ -279,11 +364,12 @@ class TempMailService(BaseEmailService):
     ) -> Optional[str]:
         del email_id, otp_sent_at
         start = time.time()
+        effective_timeout = max(int(timeout), 60)
         seen_mail_ids: set[str] = set()
         jwt = str(self._email_cache.get(email, {}).get("jwt") or "").strip()
         last_used_mail_id = self._last_used_mail_ids.get(email)
 
-        while time.time() - start < timeout:
+        while time.time() - start < effective_timeout:
             try:
                 mails = self._fetch_user_mails(jwt) or self._fetch_admin_mails(email)
                 for mail in mails:
