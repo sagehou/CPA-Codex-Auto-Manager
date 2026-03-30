@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 from .base import BaseEmailService, EmailServiceError, EmailServiceType
 from ..core.http_client import HTTPClient, RequestConfig
 from ..config.constants import OTP_CODE_PATTERN, OTP_CODE_SEMANTIC_PATTERN
+from ..config.settings import get_settings
 
 
 logger = logging.getLogger(__name__)
@@ -371,7 +372,8 @@ class TempMailService(BaseEmailService):
     ) -> Optional[str]:
         del otp_sent_at
         start = time.time()
-        effective_timeout = max(int(timeout), 60)
+        effective_timeout = max(int(timeout), 1)
+        poll_interval = max(float(self.config.get("poll_interval", 3)), 0.5)
         seen_mail_ids: set[str] = set()
         jwt = str(email_id or self._email_cache.get(email, {}).get("jwt") or "").strip()
         last_used_mail_id = self._last_used_mail_ids.get(email)
@@ -422,7 +424,7 @@ class TempMailService(BaseEmailService):
             except Exception as exc:
                 logger.debug("TempMail OTP polling failed for %s: %s", email, exc)
 
-            time.sleep(3)
+            time.sleep(poll_interval)
 
         logger.warning("TempMail OTP polling timed out for %s", email)
         return None

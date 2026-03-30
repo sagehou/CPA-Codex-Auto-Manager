@@ -644,12 +644,13 @@ class RegistrationEngine:
         """获取验证码"""
         try:
             self._log(f"Awaiting OTP fulfillment for {self.email}")
+            settings = get_settings()
 
             email_id = self.email_info.get("service_id") if self.email_info else None
             code = self.email_service.get_verification_code(
                 email=self.email,
                 email_id=email_id,
-                timeout=30,
+                timeout=settings.email_code_timeout,
                 pattern=OTP_CODE_PATTERN,
                 otp_sent_at=self._otp_sent_at,
             )
