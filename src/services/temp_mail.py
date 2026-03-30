@@ -340,18 +340,25 @@ class TempMailService(BaseEmailService):
 
         if not address:
             raise EmailServiceError(f"Incomplete response from temp mail service: {response}")
+        if not jwt:
+            logger.warning("TempMail new_address response missing jwt for %s: %s", address, response)
 
         email_info = {
             "email": address,
             "jwt": jwt,
             "address_id": address_id,
-            "service_id": address,
+            "service_id": jwt or address,
             "id": address,
             "created_at": time.time(),
         }
         self._email_cache[address] = email_info
         self.update_status(True)
-        logger.info("TempMail address created: %s", address)
+        logger.info(
+            "TempMail address created: %s (has_jwt=%s, address_id=%s)",
+            address,
+            bool(jwt),
+            address_id or "-",
+        )
         return email_info
 
     def get_verification_code(
@@ -362,16 +369,30 @@ class TempMailService(BaseEmailService):
         pattern: str = OTP_CODE_PATTERN,
         otp_sent_at: Optional[float] = None,
     ) -> Optional[str]:
-        del email_id, otp_sent_at
+        del otp_sent_at
         start = time.time()
         effective_timeout = max(int(timeout), 60)
         seen_mail_ids: set[str] = set()
-        jwt = str(self._email_cache.get(email, {}).get("jwt") or "").strip()
+        jwt = str(email_id or self._email_cache.get(email, {}).get("jwt") or "").strip()
         last_used_mail_id = self._last_used_mail_ids.get(email)
+
+        logger.info(
+            "TempMail OTP polling started for %s (has_jwt=%s, timeout=%s)",
+            email,
+            bool(jwt),
+            effective_timeout,
+        )
 
         while time.time() - start < effective_timeout:
             try:
-                mails = self._fetch_user_mails(jwt) or self._fetch_admin_mails(email)
+                mails = self._fetch_user_mails(jwt)
+                if mails:
+                    logger.debug("TempMail inbox fetch via address jwt returned %s mails for %s", len(mails), email)
+                else:
+                    mails = self._fetch_admin_mails(email)
+                    if mails:
+                        logger.debug("TempMail inbox fetch via admin returned %s mails for %s", len(mails), email)
+
                 for mail in mails:
                     mail_id = self._extract_mail_id(mail)
                     if mail_id in seen_mail_ids or mail_id == last_used_mail_id:
