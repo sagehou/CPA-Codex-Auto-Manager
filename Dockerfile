@@ -17,4 +17,4 @@ EXPOSE 8000
 
 VOLUME ["/app/data", "/app/logs"]
 
-CMD ["python", "webui.py", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "webui.py"]

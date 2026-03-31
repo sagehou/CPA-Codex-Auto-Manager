@@ -207,14 +207,16 @@ def main():
     # 更新配置
     from src.config.settings import update_settings
 
+    _load_dotenv()
+
     updates = {}
     
     # 优先使用命令行参数，如果没有则尝试从环境变量获取
-    host = args.host or os.environ.get("WEBUI_HOST")
+    host = args.host or os.environ.get("APP_HOST") or os.environ.get("WEBUI_HOST")
     if host:
         updates["webui_host"] = host
         
-    port = args.port or os.environ.get("WEBUI_PORT")
+    port = args.port or os.environ.get("APP_PORT") or os.environ.get("WEBUI_PORT")
     if port:
         updates["webui_port"] = int(port)
         
@@ -226,7 +228,7 @@ def main():
     if log_level:
         updates["log_level"] = log_level
         
-    access_password = args.access_password or os.environ.get("WEBUI_ACCESS_PASSWORD")
+    access_password = args.access_password or os.environ.get("APP_ACCESS_PASSWORD") or os.environ.get("WEBUI_ACCESS_PASSWORD")
     if access_password:
         updates["webui_access_password"] = access_password
 

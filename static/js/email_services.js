@@ -48,47 +48,48 @@ const elements = {
 };
 
 const CUSTOM_SUBTYPE_LABELS = {
-    cloudmail: '☁️ CloudMail（Cloudflare Workers 邮箱）',
+    tempmail: 'Temp-Mail (Self-hosted)',
+    cloudmail: 'CloudMail (Cloudflare Workers)',
 };
 
 const ADD_SUBTYPE_FIELDS_HTML = {
     tempmail: `
         <div id="add-tempmail-fields">
             <div class="form-group">
-                <label for="add-tm-base-url">????</label>
+                <label for="add-tm-base-url">Service URL</label>
                 <input type="text" id="add-tm-base-url" name="tm_base_url" placeholder="https://mail.example.com">
             </div>
             <div class="form-group">
-                <label for="add-tm-admin-password">?????</label>
-                <input type="text" id="add-tm-admin-password" name="tm_admin_password" placeholder="????????">
+                <label for="add-tm-admin-password">Admin Password</label>
+                <input type="text" id="add-tm-admin-password" name="tm_admin_password" placeholder="Enter admin password">
             </div>
             <div class="form-group">
                 <label for="add-tm-custom-auth">Custom Auth</label>
-                <input type="text" id="add-tm-custom-auth" name="tm_custom_auth" placeholder="???????????">
+                <input type="text" id="add-tm-custom-auth" name="tm_custom_auth" placeholder="Optional private access key">
             </div>
             <div class="form-group">
-                <label for="add-tm-domain">??</label>
-                <input type="text" id="add-tm-domain" name="tm_domain" placeholder="example.com ? a.com,b.com">
+                <label for="add-tm-domain">Domain</label>
+                <input type="text" id="add-tm-domain" name="tm_domain" placeholder="example.com or a.com,b.com">
             </div>
         </div>
     `,
     cloudmail: `
         <div id="add-cloudmail-fields">
             <div class="form-group">
-                <label for="add-cm-base-url">服务地址</label>
+                <label for="add-cm-base-url">Service URL</label>
                 <input type="text" id="add-cm-base-url" name="cm_base_url" placeholder="https://your-cloudmail.example.com">
             </div>
             <div class="form-group">
-                <label for="add-cm-admin-email">管理员邮箱</label>
+                <label for="add-cm-admin-email">Admin Email</label>
                 <input type="email" id="add-cm-admin-email" name="cm_admin_email" placeholder="admin@example.com">
             </div>
             <div class="form-group">
-                <label for="add-cm-admin-password">管理员密码</label>
-                <input type="text" id="add-cm-admin-password" name="cm_admin_password" placeholder="请输入管理员密码">
+                <label for="add-cm-admin-password">Admin Password</label>
+                <input type="text" id="add-cm-admin-password" name="cm_admin_password" placeholder="Enter admin password">
             </div>
             <div class="form-group">
-                <label for="add-cm-domain">域名</label>
-                <input type="text" id="add-cm-domain" name="cm_domain" placeholder="example.com 或 a.com,b.com">
+                <label for="add-cm-domain">Domain</label>
+                <input type="text" id="add-cm-domain" name="cm_domain" placeholder="example.com or a.com,b.com">
             </div>
         </div>
     `

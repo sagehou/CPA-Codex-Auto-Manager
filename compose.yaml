@@ -2,11 +2,11 @@ services:
   app:
     image: nasqdz/cpa-codex-auto-manager:latest
     ports:
-      - "8000:8000"
+      - "${APP_PORT:-8000}:${APP_PORT:-8000}"
     environment:
       APP_HOST: 0.0.0.0
       APP_PORT: 8000
-      APP_ACCESS_PASSWORD: ${APP_ACCESS_PASSWORD:-admin123}
+      APP_ACCESS_PASSWORD: ${APP_ACCESS_PASSWORD:-}
       CPA_SERVICE_NAME: ${CPA_SERVICE_NAME:-cli-proxy-api}
       CPA_API_URL: ${CPA_API_URL:-http://cli-proxy-api:8317/v0}
       CPA_API_TOKEN: ${CPA_API_TOKEN}
