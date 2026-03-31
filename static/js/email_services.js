@@ -82,12 +82,20 @@ function ensureAddCustomFieldsRendered() {
     const container = document.getElementById('add-fields-container');
     if (!container || container.children.length > 0) return;
     container.innerHTML = Object.values(ADD_SUBTYPE_FIELDS_HTML).join('');
+    elements.addTempmailFields = document.getElementById('add-tempmail-fields');
     elements.addCloudmailFields = document.getElementById('add-cloudmail-fields');
+}
+
+function switchAddSubType(subType) {
+    ensureAddCustomFieldsRendered();
+    if (elements.addTempmailFields) elements.addTempmailFields.style.display = subType === 'tempmail' ? '' : 'none';
+    if (elements.addCloudmailFields) elements.addCloudmailFields.style.display = subType === 'cloudmail' ? '' : 'none';
 }
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
     ensureAddCustomFieldsRendered();
+    switchAddSubType(elements.customSubType?.value || 'tempmail');
     loadStats();
     loadCustomServices();
     loadTempmailConfig();
@@ -116,6 +124,7 @@ function initEventListeners() {
     });
     bindIfPresent(elements.closeCustomModal, 'click', () => elements.addCustomModal.classList.remove('active'));
     bindIfPresent(elements.cancelAddCustom, 'click', () => elements.addCustomModal.classList.remove('active'));
+    bindIfPresent(elements.customSubType, 'change', (e) => switchAddSubType(e.target.value));
     bindIfPresent(elements.addCustomForm, 'submit', handleAddCustom);
 
     // 类型切换（添加表单）
@@ -303,18 +312,39 @@ async function loadTempmailConfig() {
 async function handleAddCustom(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
-    const serviceType = 'cloud_mail';
-    const domainInput = formData.get('cm_domain');
-    let domain = domainInput;
-    if (domainInput && domainInput.includes(',')) {
-        domain = domainInput.split(',').map(d => d.trim()).filter(d => d);
+    const subType = formData.get('sub_type');
+
+    let serviceType = 'cloud_mail';
+    let config = {};
+
+    if (subType === 'tempmail') {
+        serviceType = 'temp_mail';
+        const domainInput = formData.get('tm_domain');
+        let domain = domainInput;
+        if (domainInput && domainInput.includes(',')) {
+            domain = domainInput.split(',').map(d => d.trim()).filter(d => d);
+        }
+        config = {
+            base_url: formData.get('tm_base_url'),
+            admin_password: formData.get('tm_admin_password'),
+            domain,
+            enable_prefix: true,
+        };
+        const customAuth = formData.get('tm_custom_auth');
+        if (customAuth && customAuth.trim()) config.custom_auth = customAuth.trim();
+    } else {
+        const domainInput = formData.get('cm_domain');
+        let domain = domainInput;
+        if (domainInput && domainInput.includes(',')) {
+            domain = domainInput.split(',').map(d => d.trim()).filter(d => d);
+        }
+        config = {
+            base_url: formData.get('cm_base_url'),
+            admin_email: formData.get('cm_admin_email'),
+            admin_password: formData.get('cm_admin_password'),
+            domain: domain
+        };
     }
-    const config = {
-        base_url: formData.get('cm_base_url'),
-        admin_email: formData.get('cm_admin_email'),
-        admin_password: formData.get('cm_admin_password'),
-        domain: domain
-    };
 
     const data = {
         service_type: serviceType,
@@ -502,13 +532,20 @@ async function handleEditCustom(e) {
         const apiKey = formData.get('api_key');
         if (apiKey && apiKey.trim()) config.api_key = apiKey.trim();
     } else if (subType === 'tempmail') {
+        const domainInput = formData.get('tm_domain');
+        let domain = domainInput;
+        if (domainInput && domainInput.includes(',')) {
+            domain = domainInput.split(',').map(d => d.trim()).filter(d => d);
+        }
         config = {
             base_url: formData.get('tm_base_url'),
-            domain: formData.get('tm_domain'),
+            domain,
             enable_prefix: true
         };
         const pwd = formData.get('tm_admin_password');
         if (pwd && pwd.trim()) config.admin_password = pwd.trim();
+        const customAuth = formData.get('tm_custom_auth');
+        if (customAuth && customAuth.trim()) config.custom_auth = customAuth.trim();
     } else if (subType === 'duckmail') {
         config = {
             base_url: formData.get('dm_base_url'),

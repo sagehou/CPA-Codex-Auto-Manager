@@ -300,6 +300,7 @@ function openEmailServiceModal() {
 
     // 其他服务
     const otherServices = [
+        { key: 'temp_mail', name: 'Temp-Mail', desc: '自部署 Cloudflare Worker 临时邮箱', icon: '📮' },
         { key: 'cloud_mail', name: 'CloudMail', desc: 'Cloudflare Email 路由', icon: '🌫️' }
     ];
 

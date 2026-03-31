@@ -178,6 +178,9 @@ def _normalize_email_service_config(
     if service_type == EmailServiceType.TEMPMAIL:
         if 'default_domain' in normalized and 'domain' not in normalized:
             normalized['domain'] = normalized.pop('default_domain')
+    elif service_type == EmailServiceType.TEMP_MAIL:
+        if 'default_domain' in normalized and 'domain' not in normalized:
+            normalized['domain'] = normalized.pop('default_domain')
     elif service_type == EmailServiceType.CLOUD_MAIL:
         if 'default_domain' in normalized and 'domain' not in normalized:
             normalized['domain'] = normalized.pop('default_domain')
@@ -258,6 +261,20 @@ def _run_sync_registration_task(task_uuid: str, email_service_type: str, proxy: 
                         "max_retries": settings.tempmail_max_retries,
                         "proxy_url": actual_proxy_url,
                     }
+                elif service_type == EmailServiceType.TEMP_MAIL:
+                    from ...database.models import EmailService as EmailServiceModel
+
+                    db_service = db.query(EmailServiceModel).filter(
+                        EmailServiceModel.service_type == "temp_mail",
+                        EmailServiceModel.enabled == True
+                    ).order_by(EmailServiceModel.priority.asc()).first()
+
+                    if db_service and db_service.config:
+                        config = _normalize_email_service_config(service_type, db_service.config, actual_proxy_url)
+                        crud.update_registration_task(db, task_uuid, email_service_id=db_service.id)
+                        logger.info(f"Using Temp-Mail service: {db_service.name}")
+                    else:
+                        raise ValueError("No Temp-Mail service is available. Add and enable one first.")
                 elif service_type == EmailServiceType.CLOUD_MAIL:
                     from ...database.models import EmailService as EmailServiceModel
 
@@ -1272,6 +1289,11 @@ async def get_available_email_services():
                 "type": "tempmail",
                 "description": "临时邮箱，自动创建"
             }]
+        },
+        "temp_mail": {
+            "available": False,
+            "count": 0,
+            "services": []
         },
         "cloud_mail": {
             "available": False,

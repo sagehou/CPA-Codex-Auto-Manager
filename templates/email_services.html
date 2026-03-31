@@ -180,6 +180,7 @@
                     <div class="form-group">
                         <label for="custom-sub-type">服务类型</label>
                         <select id="custom-sub-type" name="sub_type">
+                            <option value="tempmail">Temp-Mail</option>
                             <option value="cloudmail">CloudMail</option>
                         </select>
                     </div>
@@ -251,8 +252,12 @@
                             <input type="text" id="edit-tm-admin-password" name="tm_admin_password">
                         </div>
                         <div class="form-group">
+                            <label for="edit-tm-custom-auth">Custom Auth</label>
+                            <input type="text" id="edit-tm-custom-auth" name="tm_custom_auth" placeholder="可选，私有站点访问密钥">
+                        </div>
+                        <div class="form-group">
                             <label for="edit-tm-domain">域名</label>
-                            <input type="text" id="edit-tm-domain" name="tm_domain">
+                            <input type="text" id="edit-tm-domain" name="tm_domain" placeholder="example.com 或 a.com,b.com">
                         </div>
                     </div>
 

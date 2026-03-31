@@ -79,6 +79,7 @@ class RegistrationEngineV2:
         settings = get_settings()
         self.max_retries = max(1, int(max_retries or settings.registration_max_retries or 3))
         self.default_password_length = max(12, int(getattr(settings, "registration_default_password_length", 12) or 12))
+        self.email_code_timeout = max(1, int(getattr(settings, "email_code_timeout", 30) or 30))
 
         self.email: Optional[str] = None
         self.password: Optional[str] = None
@@ -277,6 +278,7 @@ class RegistrationEngineV2:
                         last_name,
                         birthdate,
                         email_adapter,
+                        timeout=self.email_code_timeout,
                     )
                     if not success:
                         last_error = f"注册流失败: {msg}"
