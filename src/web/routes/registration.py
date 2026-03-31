@@ -1148,17 +1148,19 @@ async def get_batch_logs(batch_id: str, offset: int = Query(0, ge=0)):
 
 @router.post("/batch/{batch_id}/cancel")
 async def cancel_batch(batch_id: str):
-    """取消批量任务"""
+    """Cancel batch task."""
     if batch_id not in batch_tasks:
-        raise HTTPException(status_code=404, detail="批量任务不存在")
+        raise HTTPException(status_code=404, detail="Batch task not found")
 
     batch = batch_tasks[batch_id]
     if batch.get("finished"):
-        raise HTTPException(status_code=400, detail="批量任务已完成")
+        raise HTTPException(status_code=400, detail="Batch task already finished")
 
     batch["cancelled"] = True
     task_manager.cancel_batch(batch_id)
-    return {"success": True, "message": "批量任务取消请求已提交，正在让它们有序收工"}
+    for task_uuid in batch.get("task_uuids", []):
+        task_manager.cancel_task(task_uuid)
+    return {"success": True, "message": "Batch cancel request submitted"}
 
 
 @router.get("/tasks", response_model=TaskListResponse)
@@ -1212,18 +1214,20 @@ async def get_task_logs(task_uuid: str):
 
 @router.post("/tasks/{task_uuid}/cancel")
 async def cancel_task(task_uuid: str):
-    """取消任务"""
+    """Cancel single task."""
     with get_db() as db:
         task = crud.get_registration_task(db, task_uuid)
         if not task:
-            raise HTTPException(status_code=404, detail="任务不存在")
+            raise HTTPException(status_code=404, detail="Task not found")
 
         if task.status not in ["pending", "running"]:
-            raise HTTPException(status_code=400, detail="任务已完成或已取消")
+            raise HTTPException(status_code=400, detail="Task already finished or cancelled")
 
+        task_manager.cancel_task(task_uuid)
         task = crud.update_registration_task(db, task_uuid, status="cancelled")
+        task_manager.update_status(task_uuid, "cancelled")
 
-        return {"success": True, "message": "任务已取消"}
+        return {"success": True, "message": "Task cancelled"}
 
 
 @router.delete("/tasks/{task_uuid}")
