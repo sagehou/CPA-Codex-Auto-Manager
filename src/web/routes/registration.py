@@ -1303,6 +1303,30 @@ async def get_available_email_services():
     }
 
     with get_db() as db:
+        temp_mail_services = db.query(EmailServiceModel).filter(
+            EmailServiceModel.service_type == "temp_mail",
+            EmailServiceModel.enabled == True
+        ).order_by(EmailServiceModel.priority.asc()).all()
+
+        for service in temp_mail_services:
+            config = service.config or {}
+            domain = config.get("domain")
+            if isinstance(domain, list) and domain:
+                domain_display = domain[0]
+            else:
+                domain_display = domain
+
+            result["temp_mail"]["services"].append({
+                "id": service.id,
+                "name": service.name,
+                "type": "temp_mail",
+                "domain": domain_display,
+                "priority": service.priority
+            })
+
+        result["temp_mail"]["count"] = len(temp_mail_services)
+        result["temp_mail"]["available"] = len(temp_mail_services) > 0
+
         # 获取 Cloud Mail 服务
         cloud_mail_services = db.query(EmailServiceModel).filter(
             EmailServiceModel.service_type == "cloud_mail",
