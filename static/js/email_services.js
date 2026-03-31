@@ -52,6 +52,26 @@ const CUSTOM_SUBTYPE_LABELS = {
 };
 
 const ADD_SUBTYPE_FIELDS_HTML = {
+    tempmail: `
+        <div id="add-tempmail-fields">
+            <div class="form-group">
+                <label for="add-tm-base-url">????</label>
+                <input type="text" id="add-tm-base-url" name="tm_base_url" placeholder="https://mail.example.com">
+            </div>
+            <div class="form-group">
+                <label for="add-tm-admin-password">?????</label>
+                <input type="text" id="add-tm-admin-password" name="tm_admin_password" placeholder="????????">
+            </div>
+            <div class="form-group">
+                <label for="add-tm-custom-auth">Custom Auth</label>
+                <input type="text" id="add-tm-custom-auth" name="tm_custom_auth" placeholder="???????????">
+            </div>
+            <div class="form-group">
+                <label for="add-tm-domain">??</label>
+                <input type="text" id="add-tm-domain" name="tm_domain" placeholder="example.com ? a.com,b.com">
+            </div>
+        </div>
+    `,
     cloudmail: `
         <div id="add-cloudmail-fields">
             <div class="form-group">
@@ -119,7 +139,7 @@ function initEventListeners() {
     bindIfPresent(elements.addCustomBtn, 'click', () => {
         elements.addCustomForm.reset();
         ensureAddCustomFieldsRendered();
-        switchAddSubType('cloudmail');
+        switchAddSubType(elements.customSubType?.value || 'tempmail');
         elements.addCustomModal.classList.add('active');
     });
     bindIfPresent(elements.closeCustomModal, 'click', () => elements.addCustomModal.classList.remove('active'));
@@ -157,14 +177,6 @@ function closeEmailMoreMenu(el) {
     if (menu) menu.classList.remove('active');
 }
 
-// 切换添加表单子类型
-function switchAddSubType(subType) {
-    ensureAddCustomFieldsRendered();
-    if (elements.customSubType) elements.customSubType.value = 'cloudmail';
-    if (elements.addCloudmailFields) elements.addCloudmailFields.style.display = '';
-}
-
-// 切换编辑表单子类型显示
 function switchEditSubType(subType) {
     elements.editCustomSubTypeHidden.value = subType;
     elements.editMoemailFields.style.display = subType === 'moemail' ? '' : 'none';
