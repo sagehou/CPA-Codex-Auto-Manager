@@ -582,7 +582,7 @@ class ChatGPTClient:
             self._log(f"创建异常: {e}")
             return False, str(e)
 
-    def register_complete_flow(self, email: str, password: str, first_name: str, last_name: str, birthdate: str, email_adapter):
+    def register_complete_flow(self, email: str, password: str, first_name: str, last_name: str, birthdate: str, email_adapter, timeout: int = 30):
         max_auth_attempts = 3
         final_url = ""
 
@@ -656,7 +656,7 @@ class ChatGPTClient:
 
             if self._state_is_email_otp(state):
                 self._log("等待邮箱验证码...")
-                otp_code = email_adapter.wait_for_verification_code(email, timeout=30)
+                otp_code = email_adapter.wait_for_verification_code(email, timeout=timeout)
                 if not otp_code:
                     return False, "未收到验证码"
                 success, next_state = self.verify_email_otp(otp_code, return_state=True)
